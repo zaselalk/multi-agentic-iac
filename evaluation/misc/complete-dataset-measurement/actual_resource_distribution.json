@@ -1,0 +1,1 @@
+{"aws_cloudwatch_log_group": 1, "aws_cloudwatch_log_resource_policy": 1, "aws_route53_query_log": 1, "aws_route53_zone": 2, "aws_iam_policy_document": 1, "aws_route53_vpc_association_authorization": 1, "aws_route53_zone_association": 1, "aws_vpc": 2}

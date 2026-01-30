@@ -1,0 +1,670 @@
+Resource,Prompt,Rego intent,Difficulty,Reference output,Intent
+"aws_cloudwatch_log_group, aws_cloudwatch_log_resource_policy, aws_route53_query_log, aws_route53_zone, aws_iam_policy_document","Configure a query log that can create a log stream and put log events using Route 53 resources. Name the zone ""primary"", the cloudwatch log group ""aws_route53_example_com"", and the cloudwatch log resource policy ""route53-query-logging-policy""","package terraform.validation
+
+default is_configuration_valid = false
+
+default is_valid_r53_zone = false
+
+default is_valid_cloudwatch_log_group = false
+
+default is_valid_cloudwatch_log_resource_policy = false
+
+default is_valid_route53_query_log = false
+
+# Validate aws_route53_zone resource
+is_valid_r53_zone {
+    some i
+    resource := input.configuration.root_module.resources[i]
+    resource.type == ""aws_route53_zone""
+    resource.expressions.name
+}
+
+is_valid_cloudwatch_log_group {
+    some i
+    resource := input.configuration.root_module.resources[i]
+    resource.type == ""aws_cloudwatch_log_group""
+}
+
+is_valid_cloudwatch_log_resource_policy {
+    some i
+    resource := input.resource_changes[i]
+    resource.type == ""aws_cloudwatch_log_resource_policy""
+    contains(resource.change.after.policy_document, ""logs:PutLogEvents"")
+    contains(resource.change.after.policy_document, ""logs:CreateLogStream"")
+    resource.change.after.policy_name
+}
+
+is_valid_route53_query_log {
+    some i
+    resource := input.configuration.root_module.resources[i]
+    resource.type == ""aws_route53_query_log""
+    resource.expressions.zone_id.references[0] == ""aws_route53_zone.primary.zone_id""
+    resource.expressions.cloudwatch_log_group_arn.references[0] == ""aws_cloudwatch_log_group.aws_route53_example_com.arn""
+    resource.depends_on[0] == ""aws_cloudwatch_log_resource_policy.route53-query-logging-policy""
+}
+
+# Combine all checks into a final rule
+is_configuration_valid {
+    is_valid_r53_zone
+    is_valid_cloudwatch_log_group
+    is_valid_cloudwatch_log_resource_policy
+    is_valid_route53_query_log
+}",5,"provider ""aws"" {
+  region = ""us-east-1""
+}
+
+
+resource ""aws_route53_zone"" ""primary"" {
+  name = ""example53.com""
+}
+
+resource ""aws_cloudwatch_log_group"" ""aws_route53_example_com"" {
+  name              = ""/aws/route53/${aws_route53_zone.primary.name}""
+  retention_in_days = 30
+}
+
+# Example CloudWatch log resource policy to allow Route53 to write logs
+# to any log group under /aws/route53/*
+
+data ""aws_iam_policy_document"" ""route53-query-logging-policy"" {
+  statement {
+    actions = [
+      ""logs:CreateLogStream"",
+      ""logs:PutLogEvents"",
+    ]
+
+    resources = [""arn:aws:logs:*:*:log-group:/aws/route53/*""]
+
+    principals {
+      identifiers = [""route53.amazonaws.com""]
+      type        = ""Service""
+    }
+  }
+}
+
+resource ""aws_cloudwatch_log_resource_policy"" ""route53-query-logging-policy"" {
+  policy_document = data.aws_iam_policy_document.route53-query-logging-policy.json
+  policy_name     = ""route53-query-logging-policy""
+}
+
+resource ""aws_route53_query_log"" ""example_com"" {
+  depends_on = [aws_cloudwatch_log_resource_policy.route53-query-logging-policy]
+
+  cloudwatch_log_group_arn = aws_cloudwatch_log_group.aws_route53_example_com.arn
+  zone_id                  = aws_route53_zone.primary.zone_id
+}","Has one ""aws_route53_zone"" resource
+    with ""name""
+
+Has one ""aws_cloudwatch_log_group"" resource
+
+Has one ""aws_cloudwatch_log_resource_policy"" resource
+    with ""policy_document"" enabling ""logs:CreateLogStream"" and ""logs:PutLogEvents""
+    with ""policy_name""
+
+Has one ""aws_route53_query_log"" resource
+    with ""cloudwatch_log_group_arn"" referencing the ""aws_cloudwatch_log_group"" resource
+    with ""zone_id"" referencing the ""aws_route53_zone"" resource
+    and depends on the ""aws_cloudwatch_log_resource_policy"" resource"
+"aws_route53_vpc_association_authorization, aws_route53_zone, aws_route53_zone_association, aws_vpc, aws_vpc",Configure a valid Route 53 zone association resource,"package terraform.validation
+
+default is_configuration_valid = false
+
+default is_valid_r53_zone = false
+
+default is_valid_vpc = false
+
+default is_valid_zone_association = false
+
+default is_valid_vpc_association = false
+
+# Validate aws_route53_zone resource
+is_valid_r53_zone {
+    some i
+    resource := input.configuration.root_module.resources[i]
+    resource.type == ""aws_route53_zone""
+    resource.expressions.vpc[0].vpc_id.references[0]
+    resource.expressions.name
+}
+
+is_valid_vpc {
+    some i, j
+    resource := input.configuration.root_module.resources[i]
+    resource.type == ""aws_vpc""
+    resource.expressions.cidr_block
+    resource.expressions.enable_dns_hostnames.constant_value == true
+    resource.expressions.enable_dns_support.constant_value == true
+    
+    resource2 := input.configuration.root_module.resources[j]
+    resource2.type == ""aws_vpc""
+    resource2.expressions.cidr_block
+    resource2.expressions.enable_dns_hostnames.constant_value == true
+    resource2.expressions.enable_dns_support.constant_value == true
+}
+
+is_valid_zone_association {
+    some i
+    resource := input.configuration.root_module.resources[i]
+    resource.type == ""aws_route53_zone_association""
+    resource.expressions.vpc_id.references[0]
+    resource.expressions.zone_id.references[0]
+}
+
+is_valid_vpc_association {
+     some i
+     resource := input.configuration.root_module.resources[i]
+    resource.type == ""aws_route53_vpc_association_authorization""
+    resource.expressions.vpc_id.references[0]
+    resource.expressions.zone_id.references[0]
+}
+
+# Combine all checks into a final rule
+is_configuration_valid {
+    is_valid_r53_zone
+    is_valid_vpc
+    is_valid_zone_association
+    is_valid_vpc_association
+}",3,"provider ""aws"" {
+    region = ""us-east-1""
+}
+
+resource ""aws_vpc"" ""example"" {
+  cidr_block           = ""10.6.0.0/16""
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+}
+
+resource ""aws_route53_zone"" ""example"" {
+  name = ""example.com""
+
+  vpc {
+    vpc_id = aws_vpc.example.id
+  }
+}
+
+resource ""aws_vpc"" ""alternate"" {
+  cidr_block           = ""10.7.0.0/16""
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+}
+
+resource ""aws_route53_vpc_association_authorization"" ""example"" {
+  vpc_id  = aws_vpc.alternate.id
+  zone_id = aws_route53_zone.example.id
+}
+
+resource ""aws_route53_zone_association"" ""example"" {
+  vpc_id  = aws_route53_vpc_association_authorization.example.vpc_id
+  zone_id = aws_route53_vpc_association_authorization.example.zone_id
+}","Has multiple ""aws_vpc"" resource
+    with a specified ""cidr_block""
+    with ""enable_dns_hostnames"" equal to ""true""
+    with ""enable_dns_support"" equal to ""true""
+
+Has one ""aws_route53_zone"" resource
+    with ""name""
+    with a ""vpc"" block that contains ""vpc_id"" that references the ""aws_vpc"" resource
+
+Has one ""aws_route53_vpc_association_authorization"" resource
+    with ""vpc_id"" referencing the ""aws_vpc"" resource 
+    with ""zone_id"" referencing the ""aws_route53_zone"" resource
+
+Has one ""aws_route53_zone_association"" resource
+    with ""vpc_id"" referencing the ""aws_route53_vpc_association_authorization"" resource 
+    with ""zone_id"" referencing the ""aws_route53_vpc_association_authorization"" resource
+"
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
