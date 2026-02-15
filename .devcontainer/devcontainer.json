@@ -1,0 +1,23 @@
+{
+  "name": "MACOG Environment",
+  "image": "mcr.microsoft.com/devcontainers/python:3.10-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/conda:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    },
+    "ghcr.io/devcontainers/features/terraform:1": {
+      "version": "latest",
+      "tflint": "latest"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["hashicorp.terraform", "ms-python.python", "tsandall.opa"]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteUser": "vscode"
+}
