@@ -24,6 +24,8 @@ sys.path.append(
 import llama_index_retriever
 import click
 from typing import List, Tuple
+from azure.ai.inference import ChatCompletionsClient
+from azure.core.credentials import AzureKeyCredential
 
 DEFAULT_LOG_FILE = "logs/eval.log"
 DELIMITERS = ["```hcl", "```json", "```HCL", "```Terraform", "```terraform", "```"]
@@ -291,6 +293,23 @@ def set_huggingface_credentials():
             "Enter Huggingface API Token (for use of various models): "
         )
         os.environ["HF_API_TOKEN"] = hf_secret_access_key
+
+
+def setup_azure_foundry_client():
+    # For Azure AI Foundry (one endpoint, many models: GPT, Llama, Mistral,
+    # DeepSeek, Phi, Cohere, ...). Model names are passed as "foundry:<deployment-name>".
+    global azure_foundry_client
+    if "AZURE_AI_FOUNDRY_ENDPOINT" not in os.environ:
+        endpoint = input("Enter Azure AI Foundry endpoint URL: ")
+        os.environ["AZURE_AI_FOUNDRY_ENDPOINT"] = endpoint
+    if "AZURE_AI_FOUNDRY_API_KEY" not in os.environ:
+        api_key = getpass.getpass("Enter Azure AI Foundry API key: ")
+        os.environ["AZURE_AI_FOUNDRY_API_KEY"] = api_key
+
+    azure_foundry_client = ChatCompletionsClient(
+        endpoint=os.environ["AZURE_AI_FOUNDRY_ENDPOINT"],
+        credential=AzureKeyCredential(os.environ["AZURE_AI_FOUNDRY_API_KEY"]),
+    )
 
 
 # split the code for results
@@ -653,6 +672,11 @@ def model_evaluation(
                 text = models.Wizardcoder33b(preprompt, prompt)
             elif model == "Wizardcoder34b":
                 text = models.Wizardcoder34b(preprompt, prompt)
+            elif model.startswith("foundry:"):
+                foundry_model_name = model.split("foundry:", 1)[1]
+                text = models.AzureFoundry(
+                    preprompt, prompt, foundry_model_name, azure_foundry_client
+                )
 
             logger.info(f"Model raw output: {text}")
 
@@ -1048,7 +1072,11 @@ def setup_magicoder_params():
     "--models",
     "-m",
     type=str,
-    help=f"List of evaluation models. Available models: {' '.join(EVAL_MODELS)}",
+    help=(
+        f"List of evaluation models. Available models: {' '.join(EVAL_MODELS)}. "
+        "Any model deployed on Azure AI Foundry can also be used via "
+        "'foundry:<deployment-name>', e.g. foundry:Meta-Llama-3.1-405B-Instruct"
+    ),
     callback=read_eval_models,
     default=EVAL_MODELS,
 )
@@ -1118,6 +1146,9 @@ def main(
 
     if "Magicoder_S_CL_7B" in models:
         setup_magicoder_params()
+
+    if any(m.startswith("foundry:") for m in models):
+        setup_azure_foundry_client()
 
     # Setup retriever:
     if PROMPT_ENHANCEMENT_STRAT in ("RAG", "multi-agent"):

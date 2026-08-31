@@ -57,6 +57,8 @@ python3 eval.py -m gemini-2.5-pro -e multi-agent -s 1
   - Gemini 1.0 Pro: -m gemini-1.0-pro
   - Gemini 2.5 Pro: -m gemini-2.5-pro
   - Gemini 2.0 Flash: -m gemini-2.0-flash
+- Azure AI Foundry: any model deployed to a Foundry endpoint (GPT, Llama, Mistral, DeepSeek, Phi, Cohere, ...), addressed by its deployment name:
+  - -m foundry:<deployment-name>, e.g. -m foundry:Meta-Llama-3.1-405B-Instruct
 
 Examples:
 ```bash
@@ -65,11 +67,21 @@ python3 eval.py -m gpt5 -e multi-agent -s 1
 
 # Run multi-agent with Gemini 2.5 Pro and 2.0 Flash
 python3 eval.py -m gemini-2.5-pro,gemini-2.0-flash -e multi-agent -s 1
+
+# Run multi-agent with a model served through Azure AI Foundry
+python3 eval.py -m foundry:gpt-4.1-mini -e multi-agent -s 1
 ```
 
 Auth:
 - OpenAI models require OPENAI_API_KEY.
 - Gemini models require GOOGLE_API_KEY.
+- Azure AI Foundry models require AZURE_AI_FOUNDRY_ENDPOINT (the Foundry project's target URI) and AZURE_AI_FOUNDRY_API_KEY. Both are prompted for interactively if not already set in the environment.
+- `-e multi-agent` (and `-e RAG`) additionally grounds via the retriever in `../retriever/llama_index_retriever.py`, which needs its own Azure OpenAI credentials regardless of which model you're evaluating — see `../retriever/README.md#auth`.
+
+> **Status (2026-08-31):** Azure AI Foundry generation (`foundry:<deployment-name>`) and the Azure OpenAI-backed retriever are wired in but not yet run against real credentials in this environment. `evaluation/config-azure-foundry.json` is set to `foundry:gpt-4.1-mini`. To pick this up:
+> 1. Set `AZURE_AI_FOUNDRY_ENDPOINT` / `AZURE_AI_FOUNDRY_API_KEY` (generation).
+> 2. Set `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` / `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` / `AZURE_OPENAI_LLM_DEPLOYMENT` (retriever — separate Azure resource, see above).
+> 3. Run `python3 eval.py --config=config-azure-foundry.json -e multi-agent --quick-test` from `evaluation/` and confirm it completes without falling back to OpenAI.
 
 #### Instructions
 

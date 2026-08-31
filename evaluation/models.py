@@ -7,6 +7,7 @@ import sagemaker
 import json
 import subprocess
 import time
+from azure.ai.inference.models import SystemMessage, UserMessage
 
 # GPT evaluation generation
 # set your API key here, need to be hided
@@ -78,6 +79,28 @@ def GPT5(preprompt, prompt, client):
                 continue
             else:
                 return ""
+
+# Azure AI Foundry: one client, any model in the Foundry catalog (GPT, Llama,
+# Mistral, DeepSeek, Phi, Cohere, ...) addressed by its deployment name.
+# https://learn.microsoft.com/azure/ai-foundry/model-inference/
+def AzureFoundry(preprompt, prompt, model_name, client):
+    messages = [
+        SystemMessage(content=preprompt),
+        UserMessage(content=prompt),
+    ]
+    while True:
+        try:
+            response = client.complete(messages=messages, model=model_name)
+            return response.choices[0].message.content
+        except Exception as e:
+            s = str(e)
+            if "429" in s or "Rate limit" in s or "TooManyRequests" in s:
+                time.sleep(30)
+                continue
+            else:
+                print("Error: ", s)
+                return ""
+
 
 def Codellama7b(preprompt, prompt):
     for i in range(2):

@@ -15,6 +15,7 @@ IaC-Eval also provides the first human-curated and challenging Infrastructure-as
 - [OpenAI API token](https://platform.openai.com/docs/quickstart/account-setup): for GPT-3.5-Turbo and GPT-4
 - [Google API token](https://ai.google.dev/gemini-api/docs/quickstart?lang=python#set-up-api-key): for Gemini-1.0-Pro
 - [Replicate API token](https://replicate.com/): for CodeLlama and WizardCoder variants
+- [Azure AI Foundry](https://ai.azure.com/) endpoint + API key: for any model deployed on Azure AI Foundry (GPT, Llama, Mistral, DeepSeek, Phi, Cohere, and more), addressed via `-m foundry:<deployment-name>`. See `evaluation/README.md` for details.
 
 <sup>*</sup> Our evaluation against MagiCoder was performed on a manually deployed AWS SageMaker instance inference endpoint. We provide more details on our setup script, see `evaluation/README.md`, if that is of interest.  
 

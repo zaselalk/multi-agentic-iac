@@ -1,0 +1,4 @@
+{
+  "samples": 1,
+  "models": ["foundry:gpt-4.1-mini"]
+}
