@@ -30,6 +30,17 @@ def _validate_foundry_endpoint(endpoint):
             "find it in the Foundry portal under your project's "
             "'Models + endpoints' page."
         )
+    # azure-ai-inference appends its operation route (/embeddings,
+    # /chat/completions, ...) directly onto whatever string is given -
+    # it does not add "/models" itself, so a Foundry resource endpoint
+    # (*.services.ai.azure.com) missing that path segment 404s.
+    host = endpoint.split("//", 1)[-1].split("/", 1)[0]
+    if host.endswith(".services.ai.azure.com") and not endpoint.rstrip("/").endswith("/models"):
+        raise ValueError(
+            f"AZURE_AI_FOUNDRY_ENDPOINT ({endpoint}) is missing the '/models' "
+            "path. Azure AI Foundry resource endpoints need it explicitly: "
+            "https://<resource-name>.services.ai.azure.com/models"
+        )
 
 
 class Retriever:
