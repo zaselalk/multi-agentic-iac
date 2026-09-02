@@ -299,6 +299,23 @@ def set_huggingface_credentials():
         os.environ["HF_API_TOKEN"] = hf_secret_access_key
 
 
+def _validate_foundry_endpoint(endpoint):
+    # A Foundry *project* endpoint (.../api/projects/<name>, for the Azure AI
+    # Projects/Agents SDK) is easy to copy by mistake from the portal's
+    # Overview page instead of the model inference endpoint
+    # (.../models, under "Models + endpoints") that azure-ai-inference needs.
+    # Both "work" in that they accept a request, so this fails fast with a
+    # clear message instead of a cryptic "API version not supported" 400.
+    if "/api/projects/" in endpoint:
+        raise ValueError(
+            f"AZURE_AI_FOUNDRY_ENDPOINT ({endpoint}) looks like a Foundry "
+            "*project* endpoint, not the model inference endpoint. Use "
+            "https://<resource-name>.services.ai.azure.com/models instead - "
+            "find it in the Foundry portal under your project's "
+            "'Models + endpoints' page."
+        )
+
+
 def setup_azure_foundry_client():
     # For Azure AI Foundry (one endpoint, many models: GPT, Llama, Mistral,
     # DeepSeek, Phi, Cohere, ...). Model names are passed as "foundry:<deployment-name>".
@@ -309,6 +326,8 @@ def setup_azure_foundry_client():
     if "AZURE_AI_FOUNDRY_API_KEY" not in os.environ:
         api_key = getpass.getpass("Enter Azure AI Foundry API key: ")
         os.environ["AZURE_AI_FOUNDRY_API_KEY"] = api_key
+
+    _validate_foundry_endpoint(os.environ["AZURE_AI_FOUNDRY_ENDPOINT"])
 
     # azure-ai-inference defaults to api-version=2024-05-01-preview, which
     # not every Foundry deployment accepts. AZURE_AI_FOUNDRY_API_VERSION

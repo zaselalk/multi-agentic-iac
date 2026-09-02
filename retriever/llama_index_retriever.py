@@ -14,6 +14,24 @@ from llama_index.core import StorageContext, load_index_from_storage
 from llama_index.core.node_parser import TokenTextSplitter
 from azure.core.credentials import AzureKeyCredential
 
+
+def _validate_foundry_endpoint(endpoint):
+    # A Foundry *project* endpoint (.../api/projects/<name>, for the Azure AI
+    # Projects/Agents SDK) is easy to copy by mistake from the portal's
+    # Overview page instead of the model inference endpoint
+    # (.../models, under "Models + endpoints") that azure-ai-inference needs.
+    # Both "work" in that they accept a request, so this fails fast with a
+    # clear message instead of a cryptic "API version not supported" 400.
+    if "/api/projects/" in endpoint:
+        raise ValueError(
+            f"AZURE_AI_FOUNDRY_ENDPOINT ({endpoint}) looks like a Foundry "
+            "*project* endpoint, not the model inference endpoint. Use "
+            "https://<resource-name>.services.ai.azure.com/models instead - "
+            "find it in the Foundry portal under your project's "
+            "'Models + endpoints' page."
+        )
+
+
 class Retriever:
     def __init__(self, stored_index = None, path = None):
         self.embed_model, self.llm = self.setup_api()
@@ -36,6 +54,8 @@ class Retriever:
         if "AZURE_AI_FOUNDRY_RETRIEVER_MODEL" not in os.environ:
             retriever_model = input("Enter Azure AI Foundry chat deployment name for retrieval query generation (e.g. gpt-4.1-mini): ")
             os.environ["AZURE_AI_FOUNDRY_RETRIEVER_MODEL"] = retriever_model
+
+        _validate_foundry_endpoint(os.environ["AZURE_AI_FOUNDRY_ENDPOINT"])
 
         endpoint = os.environ["AZURE_AI_FOUNDRY_ENDPOINT"]
         credential = AzureKeyCredential(os.environ["AZURE_AI_FOUNDRY_API_KEY"])
