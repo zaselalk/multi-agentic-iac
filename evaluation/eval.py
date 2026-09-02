@@ -310,9 +310,18 @@ def setup_azure_foundry_client():
         api_key = getpass.getpass("Enter Azure AI Foundry API key: ")
         os.environ["AZURE_AI_FOUNDRY_API_KEY"] = api_key
 
+    # azure-ai-inference defaults to api-version=2024-05-01-preview, which
+    # not every Foundry deployment accepts. AZURE_AI_FOUNDRY_API_VERSION
+    # overrides it when needed (see retriever/README.md#auth).
+    client_kwargs = {}
+    api_version = os.environ.get("AZURE_AI_FOUNDRY_API_VERSION")
+    if api_version:
+        client_kwargs["api_version"] = api_version
+
     azure_foundry_client = ChatCompletionsClient(
         endpoint=os.environ["AZURE_AI_FOUNDRY_ENDPOINT"],
         credential=AzureKeyCredential(os.environ["AZURE_AI_FOUNDRY_API_KEY"]),
+        **client_kwargs,
     )
 
 

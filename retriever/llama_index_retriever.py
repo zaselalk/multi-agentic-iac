@@ -40,16 +40,27 @@ class Retriever:
         endpoint = os.environ["AZURE_AI_FOUNDRY_ENDPOINT"]
         credential = AzureKeyCredential(os.environ["AZURE_AI_FOUNDRY_API_KEY"])
 
+        # azure-ai-inference defaults to api-version=2024-05-01-preview, which
+        # not every Foundry deployment (e.g. Azure-OpenAI-family models
+        # routed through Foundry) accepts. Let AZURE_AI_FOUNDRY_API_VERSION
+        # override it when the deployment demands a specific version.
+        client_kwargs = {}
+        api_version = os.environ.get("AZURE_AI_FOUNDRY_API_VERSION")
+        if api_version:
+            client_kwargs["api_version"] = api_version
+
         embed_model = AzureAIEmbeddingsModel(
             endpoint=endpoint,
             credential=credential,
             model_name=os.environ["AZURE_AI_FOUNDRY_EMBEDDING_MODEL"],
+            client_kwargs=client_kwargs,
         )
 
         llm = AzureAICompletionsModel(
             endpoint=endpoint,
             credential=credential,
             model_name=os.environ["AZURE_AI_FOUNDRY_RETRIEVER_MODEL"],
+            client_kwargs=client_kwargs,
         )
 
         return embed_model, llm

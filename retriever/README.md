@@ -17,6 +17,8 @@ The retriever grounds through the same Azure AI Foundry project used for generat
 
 All four can be set in a `.env` file at the repo root — see `../.env.example`.
 
+If a call fails with `(BadRequest) API version not supported`, set `AZURE_AI_FOUNDRY_API_VERSION` (optional, also in `.env.example`) — the `azure-ai-inference` SDK defaults to `2024-05-01-preview`, which some Foundry deployments (notably Azure-OpenAI-family models like GPT or `text-embedding-3-*`) reject. Try a plain Azure OpenAI date version instead, e.g. `2024-06-01`.
+
 ## Download
 
 ```shell
