@@ -3,6 +3,10 @@ import shutil
 import csv
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
+
 from openai import OpenAI
 import numpy as np
 import pandas as pd

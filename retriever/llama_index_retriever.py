@@ -2,6 +2,10 @@ import os
 import getpass
 import logging
 import sys
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
+
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader

@@ -19,6 +19,8 @@ IaC-Eval also provides the first human-curated and challenging Infrastructure-as
 
 <sup>*</sup> Our evaluation against MagiCoder was performed on a manually deployed AWS SageMaker instance inference endpoint. We provide more details on our setup script, see `evaluation/README.md`, if that is of interest.  
 
+4. Copy `.env.example` to `.env` at the repo root and fill in whichever keys above you have. It's loaded automatically (via `python-dotenv`) by `evaluation/eval.py` and `retriever/llama_index_retriever.py`; `.env` is gitignored, and anything left blank still falls back to an interactive prompt when the pipeline needs it.
+
 ### Using the Evaluation Pipeline
 
 To access and utilize the evaluation pipeline, you need to switch to a specific branch of this repository and set up the environment. Follow these steps:
