@@ -8,15 +8,14 @@ Note: You can run `./setup.sh` for dependency check/setup and executing the foll
 
 ## Auth
 
-The retriever grounds via an Azure OpenAI resource (one chat deployment for query generation, one embedding deployment for indexing/retrieval). Set, or you'll be prompted for:
+The retriever grounds through the same Azure AI Foundry project used for generation (`foundry:<deployment-name>` models in `evaluation/eval.py`) — one endpoint and key, plus a deployment name each for the embedding model (indexing/retrieval) and the chat model (query generation). Set, or you'll be prompted for:
 
-- `AZURE_OPENAI_ENDPOINT` — e.g. `https://<resource>.openai.azure.com/`
-- `AZURE_OPENAI_API_KEY`
-- `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` — e.g. `text-embedding-ada-002`
-- `AZURE_OPENAI_LLM_DEPLOYMENT` — e.g. `gpt-35-turbo`
-- `AZURE_OPENAI_API_VERSION` — optional, defaults to `2024-02-01`
+- `AZURE_AI_FOUNDRY_ENDPOINT` — the Foundry project's target URI, e.g. `https://<project>.services.ai.azure.com/models`
+- `AZURE_AI_FOUNDRY_API_KEY`
+- `AZURE_AI_FOUNDRY_EMBEDDING_MODEL` — an embedding model deployed in your Foundry project, e.g. `text-embedding-3-large`
+- `AZURE_AI_FOUNDRY_RETRIEVER_MODEL` — a chat model deployed in your Foundry project, e.g. `gpt-4.1-mini`
 
-This is independent of the `AZURE_AI_FOUNDRY_ENDPOINT`/`AZURE_AI_FOUNDRY_API_KEY` used for `foundry:<deployment-name>` generation models in `evaluation/eval.py` — Azure AI Foundry's unified model-catalog endpoint (used for generation) and an Azure OpenAI resource (used here for embeddings) are different Azure resource types with separate credentials, even when both live under the same Foundry project.
+All four can be set in a `.env` file at the repo root — see `../.env.example`.
 
 ## Download
 

@@ -6,53 +6,50 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
-from llama_index.llms.azure_openai import AzureOpenAI
-from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from llama_index.llms.azure_inference import AzureAICompletionsModel
+from llama_index.embeddings.azure_inference import AzureAIEmbeddingsModel
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.core import Settings
 from llama_index.core import StorageContext, load_index_from_storage
 from llama_index.core.node_parser import TokenTextSplitter
+from azure.core.credentials import AzureKeyCredential
 
 class Retriever:
-    def __init__(self, stored_index = None, path = None, api_version="2024-02-01"):
-        self.embed_model, self.llm = self.setup_api(api_version)
+    def __init__(self, stored_index = None, path = None):
+        self.embed_model, self.llm = self.setup_api()
         self.index = self.retrieve_documents(stored_index, path)
 
-    def setup_api(self, api_version):
-        # Grounding is done through an Azure OpenAI resource (a chat + an
-        # embedding deployment) rather than OpenAI directly, so RAG works
-        # from the same Azure AI Foundry project used for generation.
-        if "AZURE_OPENAI_ENDPOINT" not in os.environ:
-            endpoint = input("Enter Azure OpenAI endpoint (e.g. https://<resource>.openai.azure.com/): ")
-            os.environ["AZURE_OPENAI_ENDPOINT"] = endpoint
-        if "AZURE_OPENAI_API_KEY" not in os.environ:
-            api_key = getpass.getpass("Enter Azure OpenAI API key: ")
-            os.environ["AZURE_OPENAI_API_KEY"] = api_key
-        if "AZURE_OPENAI_EMBEDDING_DEPLOYMENT" not in os.environ:
-            embedding_deployment = input("Enter Azure OpenAI embedding deployment name (e.g. text-embedding-ada-002): ")
-            os.environ["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"] = embedding_deployment
-        if "AZURE_OPENAI_LLM_DEPLOYMENT" not in os.environ:
-            llm_deployment = input("Enter Azure OpenAI chat deployment name (e.g. gpt-35-turbo): ")
-            os.environ["AZURE_OPENAI_LLM_DEPLOYMENT"] = llm_deployment
+    def setup_api(self):
+        # Grounding runs through the same Azure AI Foundry project used for
+        # generation (see evaluation/eval.py's foundry:<deployment-name>
+        # models) - one endpoint/key, one embedding deployment for indexing,
+        # and one chat deployment for this retriever's query generation.
+        if "AZURE_AI_FOUNDRY_ENDPOINT" not in os.environ:
+            endpoint = input("Enter Azure AI Foundry endpoint URL: ")
+            os.environ["AZURE_AI_FOUNDRY_ENDPOINT"] = endpoint
+        if "AZURE_AI_FOUNDRY_API_KEY" not in os.environ:
+            api_key = getpass.getpass("Enter Azure AI Foundry API key: ")
+            os.environ["AZURE_AI_FOUNDRY_API_KEY"] = api_key
+        if "AZURE_AI_FOUNDRY_EMBEDDING_MODEL" not in os.environ:
+            embedding_model = input("Enter Azure AI Foundry embedding deployment name (e.g. text-embedding-3-large): ")
+            os.environ["AZURE_AI_FOUNDRY_EMBEDDING_MODEL"] = embedding_model
+        if "AZURE_AI_FOUNDRY_RETRIEVER_MODEL" not in os.environ:
+            retriever_model = input("Enter Azure AI Foundry chat deployment name for retrieval query generation (e.g. gpt-4.1-mini): ")
+            os.environ["AZURE_AI_FOUNDRY_RETRIEVER_MODEL"] = retriever_model
 
-        azure_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
-        api_key = os.environ["AZURE_OPENAI_API_KEY"]
-        api_version = os.environ.get("AZURE_OPENAI_API_VERSION", api_version)
+        endpoint = os.environ["AZURE_AI_FOUNDRY_ENDPOINT"]
+        credential = AzureKeyCredential(os.environ["AZURE_AI_FOUNDRY_API_KEY"])
 
-        embed_model = AzureOpenAIEmbedding(
-            model="text-embedding-ada-002",
-            deployment_name=os.environ["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"],
-            api_key=api_key,
-            azure_endpoint=azure_endpoint,
-            api_version=api_version,
+        embed_model = AzureAIEmbeddingsModel(
+            endpoint=endpoint,
+            credential=credential,
+            model_name=os.environ["AZURE_AI_FOUNDRY_EMBEDDING_MODEL"],
         )
 
-        llm = AzureOpenAI(
-            model="gpt-35-turbo",
-            deployment_name=os.environ["AZURE_OPENAI_LLM_DEPLOYMENT"],
-            api_key=api_key,
-            azure_endpoint=azure_endpoint,
-            api_version=api_version,
+        llm = AzureAICompletionsModel(
+            endpoint=endpoint,
+            credential=credential,
+            model_name=os.environ["AZURE_AI_FOUNDRY_RETRIEVER_MODEL"],
         )
 
         return embed_model, llm
