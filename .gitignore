@@ -19,3 +19,6 @@ evaluation/misc/complete-dataset-measurement/terraform_config/*
 evaluation/misc/complete-dataset-measurement/rego_config/*
 evaluation/misc/ablation/terraform_config/*
 venv
+
+# Project storage for the orchestrator (see orchestrator/projects.py)
+.visor/

@@ -50,6 +50,30 @@ Note: You can run `./setup.sh` to check if you have Terraform and OPA installed.
 
 
 
+## Serving the Visual DevOps Builder
+
+The same multi-agent orchestration also runs as a live backend for the
+`visual-devops-builder` canvas, through the MCP graph server in `mcp-server`:
+
+```
+visual-devops-builder  ──HTTP──>  orchestrator/  ──MCP/stdio──>  mcp-server
+   (React Flow canvas)         (this repo)                   (graph + Terraform compiler)
+```
+
+```shell
+./venv/bin/uvicorn orchestrator.server:app --port 8080
+```
+
+Here the agents edit an infrastructure **graph** through MCP tools instead of
+emitting HCL directly; `mcp-server` compiles that graph to Terraform
+deterministically. See `orchestrator/README.md` for endpoints, environment
+variables and design notes, and `../mcp-server/schema.json` for the contract
+shared by all three repos.
+
+Note: this repo's documented conda setup (`environment.yml`) is one way to get
+the dependencies; `orchestrator/requirements.txt` lists what the service adds
+on top of the evaluation pipeline's own dependencies.
+
 ## Acknowledgments
 
 <https://github.com/openai/human-eval/tree/master>

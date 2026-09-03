@@ -1,0 +1,6 @@
+# Orchestrator-only dependencies. The agent loop, model dispatch and RAG come
+# from evaluation/eval.py, so the environment.yml / conda env it needs must be
+# installed too (or the venv described in orchestrator/README.md).
+fastapi
+uvicorn[standard]
+pydantic
