@@ -114,6 +114,44 @@ def rag_knowledge(Retriever, query):
     return knowledge
 
 
+def call_model(model, preprompt, prompt):
+    """
+    Dispatch one generation call to whichever backend `model` names.
+    Shared by the evaluation loop and the standalone generate.py entrypoint,
+    so both go through exactly the same backends.
+    """
+    if model == "gpt4":
+        return models.GPT4(preprompt, prompt, gpt_client)
+    elif model == "gpt3.5":
+        return models.GPT3_5(preprompt, prompt, gpt_client)
+    elif model == "gpt5":
+        return models.GPT5(preprompt, prompt, gpt_client)
+    elif model == "gemini-1.0-pro":
+        return models.gemini(preprompt, prompt)
+    elif model == "gemini-2.5-pro":
+        return models.gemini_2_5(preprompt, prompt)
+    elif model == "gemini-2.0-flash":
+        return models.gemini_2_flash(preprompt, prompt)
+    elif model == "codellama-13b":
+        return models.Codellama13b(preprompt, prompt)
+    elif model == "codellama-7b":
+        return models.Codellama7b(preprompt, prompt)
+    elif model == "codellama-34b":
+        return models.Codellama34b(preprompt, prompt)
+    elif model == "Magicoder_S_CL_7B":
+        return models.Magicoder_S_CL_7B(preprompt, prompt)
+    elif model == "Wizardcoder33b":
+        return models.Wizardcoder33b(preprompt, prompt)
+    elif model == "Wizardcoder34b":
+        return models.Wizardcoder34b(preprompt, prompt)
+    elif model.startswith("foundry:"):
+        foundry_model_name = model.split("foundry:", 1)[1]
+        return models.AzureFoundry(
+            preprompt, prompt, foundry_model_name, azure_foundry_client
+        )
+    raise ValueError(f"Unknown model: {model}")
+
+
 def build_multi_agent_prompt(knowledge: str, user_prompt: str) -> str:
     return f"""
 You are a team of cooperating infrastructure agents (Requirements, Architect, IR Synthesizer, HCL Generator, Verifier).
@@ -691,35 +729,7 @@ def model_evaluation(
             logger.info(f"Sample {i} for model {model}")
             logger.info(f"Preprompt: {preprompt}")
             logger.info(f"Prompt: {prompt}")
-            if model == "gpt4":
-                text = models.GPT4(preprompt, prompt, gpt_client)
-            elif model == "gpt3.5":
-                text = models.GPT3_5(preprompt, prompt, gpt_client)
-            elif model == "gpt5":
-                text = models.GPT5(preprompt, prompt, gpt_client)
-            elif model == "gemini-1.0-pro":
-                text = models.gemini(preprompt, prompt)
-            elif model == "gemini-2.5-pro":
-                text = models.gemini_2_5(preprompt, prompt)
-            elif model == "gemini-2.0-flash":
-                text = models.gemini_2_flash(preprompt, prompt)
-            elif model == "codellama-13b":
-                text = models.Codellama13b(preprompt, prompt)
-            elif model == "codellama-7b":
-                text = models.Codellama7b(preprompt, prompt)
-            elif model == "codellama-34b":
-                text = models.Codellama34b(preprompt, prompt)
-            elif model == "Magicoder_S_CL_7B":
-                text = models.Magicoder_S_CL_7B(preprompt, prompt)
-            elif model == "Wizardcoder33b":
-                text = models.Wizardcoder33b(preprompt, prompt)
-            elif model == "Wizardcoder34b":
-                text = models.Wizardcoder34b(preprompt, prompt)
-            elif model.startswith("foundry:"):
-                foundry_model_name = model.split("foundry:", 1)[1]
-                text = models.AzureFoundry(
-                    preprompt, prompt, foundry_model_name, azure_foundry_client
-                )
+            text = call_model(model, preprompt, prompt)
 
             logger.info(f"Model raw output: {text}")
 

@@ -83,6 +83,27 @@ Auth:
 > - `AZURE_AI_FOUNDRY_EMBEDDING_MODEL` / `AZURE_AI_FOUNDRY_RETRIEVER_MODEL` must exactly match deployment names that exist in that Foundry project, or calls 404.
 > - `llama-index-llms-azure-inference` (0.1.0/0.1.1, the versions compatible with this repo's pinned `llama-index-core<0.11`) has a bug where `.metadata` ignores the `model_name` you pass it and instead calls a `get_model_info()` route many Foundry deployments don't implement — worked around in `retriever/llama_index_retriever.py`.
 
+### Standalone generation (no benchmark)
+
+To send your own request through the multi-agent orchestration and just get Terraform HCL back — no dataset, no scoring, no results CSVs — use `generate.py`:
+
+```bash
+python3 generate.py "create an S3 bucket named my-app-logs with versioning enabled"
+python3 generate.py -f request.txt -o main.tf
+echo "..." | python3 generate.py -
+```
+
+It reuses `eval.py`'s prompt construction, retrieval and model dispatch directly, so output matches what the pipeline would generate for the same intent.
+
+Options:
+- `-m/--model` — defaults to `foundry:gpt-4.1-mini`; any `eval.py` model works.
+- `-o/--output` — write HCL to a file (otherwise stdout; progress goes to stderr, so `> main.tf` also works).
+- `--no-rag` — skip retrieval grounding. Faster and no embedding calls, at some accuracy cost.
+- `--validate` — run `terraform init -backend=false` + `terraform validate` on the result. **Needs no AWS credentials**, unlike the benchmark's `terraform plan` step.
+- `--show-prompt` — dump the assembled multi-agent prompt to stderr.
+
+Unlike `eval.py`, this only sets up the one model client it needs — it won't prompt for AWS or Replicate credentials.
+
 #### Instructions
 
 This function takes in data from the `data/` folder, and the evaluation results are written to the respective model folders (e.g., `/tmp/gpt4/` stores the temporary evaluated results, while `/results/gpt4` stores the final results).
