@@ -78,9 +78,10 @@ Auth:
 - Azure AI Foundry models require AZURE_AI_FOUNDRY_ENDPOINT (the Foundry project's target URI) and AZURE_AI_FOUNDRY_API_KEY. Both are prompted for interactively if not already set in the environment.
 - `-e multi-agent` (and `-e RAG`) additionally grounds via the retriever in `../retriever/llama_index_retriever.py`, which reuses the same two Foundry variables above plus an embedding and a chat deployment name of its own — see `../retriever/README.md#auth`.
 
-> **Status (2026-09-02):** Azure AI Foundry generation (`foundry:<deployment-name>`) and the Foundry-backed retriever are wired in but not yet run against real credentials in this environment. `evaluation/config-azure-foundry.json` is set to `foundry:gpt-4.1-mini`. To pick this up:
-> 1. Copy `../.env.example` to `../.env` and fill in `AZURE_AI_FOUNDRY_ENDPOINT` / `AZURE_AI_FOUNDRY_API_KEY` (shared by generation and the retriever) plus `AZURE_AI_FOUNDRY_EMBEDDING_MODEL` / `AZURE_AI_FOUNDRY_RETRIEVER_MODEL` (retriever's own deployments — need to exist in the same Foundry project). Both eval.py and the retriever load it automatically.
-> 2. Run `python3 eval.py --config=config-azure-foundry.json -e multi-agent --quick-test` from `evaluation/` and confirm it completes without falling back to OpenAI.
+> **Status (2026-09-03):** Confirmed working end-to-end against a real Azure AI Foundry project — `python3 eval.py --config=config-azure-foundry.json -e multi-agent --quick-test` completes generation, RAG index build/load, and retrieval, producing real Terraform HCL. Three deployment gotchas along the way, now guarded against locally where possible (see `../retriever/README.md#auth`):
+> - `AZURE_AI_FOUNDRY_ENDPOINT` must be the Foundry resource's model inference endpoint (`https://<resource-name>.services.ai.azure.com/models`, note the required `/models` suffix), not the project endpoint (`.../api/projects/<name>`) shown on the portal's Overview page. Both mistakes now fail fast locally with a clear message.
+> - `AZURE_AI_FOUNDRY_EMBEDDING_MODEL` / `AZURE_AI_FOUNDRY_RETRIEVER_MODEL` must exactly match deployment names that exist in that Foundry project, or calls 404.
+> - `llama-index-llms-azure-inference` (0.1.0/0.1.1, the versions compatible with this repo's pinned `llama-index-core<0.11`) has a bug where `.metadata` ignores the `model_name` you pass it and instead calls a `get_model_info()` route many Foundry deployments don't implement — worked around in `retriever/llama_index_retriever.py`.
 
 #### Instructions
 
