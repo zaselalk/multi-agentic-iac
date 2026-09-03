@@ -93,6 +93,13 @@ class Retriever:
             model_name=os.environ["AZURE_AI_FOUNDRY_RETRIEVER_MODEL"],
             client_kwargs=client_kwargs,
         )
+        # llama-index-llms-azure-inference==0.1.0/0.1.1 (the versions that
+        # support our pinned llama-index-core<0.11) never wire the model_name
+        # constructor arg into the private _model_name attribute .metadata
+        # actually reads. Left unset, .metadata calls get_model_info(), which
+        # 404s on many Foundry deployments that don't implement that route.
+        # Setting it directly here skips that call.
+        llm._model_name = os.environ["AZURE_AI_FOUNDRY_RETRIEVER_MODEL"]
 
         return embed_model, llm
 
