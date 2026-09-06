@@ -22,8 +22,12 @@ Verified working, end to end:
 - The counterexample-guided repair loop. Measured on a deliberately
   non-compliant project (public S3 ACL + unencrypted RDS): the Security Prover
   raised J = 6.0, and two repair rounds took it to J = 0.
-- The Security Prover: OPA over three Rego policies, evaluated on the typed IR,
-  with every violation carrying the `node_id` it belongs to.
+- The Security Prover: OPA over seven Rego rules in four policy files,
+  evaluated on the typed IR, with every violation carrying the `node_id` it
+  belongs to. The IR is parsed back out of the emitted HCL, so it describes
+  what Terraform will actually see (G1).
+- Validation on every hand edit, at ~110 ms per save, reported and never
+  auto-repaired (G5).
 - The DevOps validator: `terraform init -backend=false` + `terraform validate`.
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.
@@ -32,48 +36,58 @@ Not built at all: cost estimation, the Memory Curator, any code→graph
 direction, spatial semantics, the visual overlay, real-state drift, and an
 evaluation protocol.
 
+**Closed so far:** G1 (2026-09-06), G5 (2026-09-06).
+
 ---
 
 ## The gaps
 
-| | Gap | Blocks objective | Size |
-|---|---|---|---|
-| **G1** | The IR is lossy — compliance companions never reach it | (a) schema, (b) conflict detection | S |
-| **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L |
-| **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M |
-| **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M |
-| **G5** | A human edit does not trigger the validation loop | **(d) — directly** | S |
-| **G6** | Conflict detection is declared in the schema, unimplemented | (b) — **the research question** | M |
-| **G7** | No evaluation protocol | all | L |
-| **G8** | The canvas does not render what the backend now emits | (c), (d) | M |
-| **G9** | No tests, in any of the three repos | reproducibility | M |
+| | Gap | Blocks objective | Size | Status |
+|---|---|---|---|---|
+| **G1** | The IR is lossy — compliance companions never reach it | (a) schema, (b) conflict detection | S | **Closed** 2026-09-06 |
+| **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L | Open |
+| **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M | Open |
+| **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M | Open |
+| **G5** | A human edit does not trigger the validation loop | **(d) — directly** | S | **Closed** 2026-09-06 |
+| **G6** | Conflict detection is declared in the schema, unimplemented | (b) — **the research question** | M | Open |
+| **G7** | No evaluation protocol | all | L | Open |
+| **G8** | The canvas does not render what the backend now emits | (c), (d) | M | Open |
+| **G9** | No tests, in any of the three repos | reproducibility | M | Open |
 
 ---
 
-### G1 — The IR is lossy
+### G1 — The IR is lossy — CLOSED
 
-`compile_graph` emits compliance *companion* resources into the HCL —
-`aws_s3_bucket_public_access_block`, `aws_s3_bucket_server_side_encryption_configuration`,
-`aws_s3_bucket_versioning` — but `terraform_ir.resources` contains only the
-primary resource for each node. Confirmed by compiling a two-node graph: the
-HCL has five resources, the IR has two.
+**What was wrong.** The IR and the HCL were assembled independently and had
+drifted in both directions. Compliance companions —
+`aws_s3_bucket_public_access_block`, the SSE configuration, the versioning
+resource — reached the HCL and never the IR; so did `tags` and `static_blocks`.
+Going the other way, `versioning_status` sat in the IR as an attribute of
+`aws_s3_bucket`, which the emitter filters out as a derived key, so the IR
+described a field Terraform never sees.
 
-Three consequences:
+Because validators read the IR, this bounded what could be checked at all.
 
-1. Policies evaluated on the IR cannot see the mitigations the compiler
-   applied. `no_public_s3.rego` flags `acl = "public-read"` correctly, but a
-   rule of the form "every bucket must have a public access block" would fire
-   falsely on every bucket, because the block is invisible.
-2. The IR shown in the canvas's **IR** tab is not a faithful account of the
-   Terraform in the **Terraform** tab, which undercuts the point of showing it.
-3. MACOG's round-trip equivalence check (Eq. 11, `equiv(P₁, P*) = true`) cannot
-   be run against an IR that does not describe what was emitted.
+**What shipped.** `_emit_resource` and `_emit_companions` now return the IR
+alongside the HCL, and the IR half is `parse_body` run over the rendered body —
+a generic block parser, since the input is always text this compiler produced.
+Divergence stopped being something to keep in sync and became
+unrepresentable. Companions carry the `node_id` that induced them, plus
+`generated_by` and the registry's `reason`.
 
-**Fix.** In `mcp-server/compiler.py`, append companion resources to
-`ir_resources` as they are emitted in `_emit_companions`, tagging each with the
-`node_id` of the node that induced it and a flag marking it compiler-generated.
-Small and self-contained; do it before writing more policies, or the policies
-will encode the blind spot.
+Verified on a five-node graph: 8 resources emitted, 8 in the IR, every
+top-level attribute key present in both, `terraform validate` still passing.
+
+**What it unblocked.** Three policies that could not previously be written, each
+now shipped and tested — `s3_missing_public_access_block`, `ebs_root_encrypted`
+(reads the `root_block_device` static block), and `missing_default_tags` (reads
+the merged `tags` expression, the fourth of the four checks MACOG names). They
+double as a regression test for a registry entry silently losing its
+`companion_resources`, `static_blocks` or `taggable` flag.
+
+**Still open here.** The round-trip check this was a prerequisite for still
+needs G2 — an IR that faithfully describes the HCL is necessary for
+`equiv(P₁, P*)`, not sufficient.
 
 ### G2 — No code→graph direction
 
@@ -148,27 +162,38 @@ and a no-op; it returns `skipped`, never a number).
    filled in. Stamp it with the catalogue date — a cost figure nobody can trace
    does not belong in a proof-carrying bundle.
 
-### G5 — A human edit does not trigger the validation loop
+### G5 — A human edit does not trigger the validation loop — CLOSED
 
-This is objective (d) — "a Validation Loop that triggers AI intervention during
-human design errors" — and it is the cheapest gap on this list.
+**What was wrong.** `POST /projects/{id}/graph` — what the canvas calls on every
+drag, drop and field edit — compiled and returned the compiler's schema errors
+only. It never ran the Security Prover. A human who set a bucket's ACL to
+`public-read` got silence until they happened to start a chat turn.
 
-`POST /projects/{id}/graph` is the endpoint the canvas calls on every drag,
-drop and field edit. It calls `_compile` and returns the compiler's schema
-errors. It does **not** run the Security Prover, and it does not consult an
-agent. A human who sets a bucket's ACL to `public-read` gets silence until they
-happen to start a chat turn or click verify.
+So the conflict this research is about was detectable by the system and not
+surfaced when it actually happened.
 
-So the policy conflict the research is about — a human making a visual change
-that violates a constraint only the agents know — is detectable by the system
-and not currently surfaced when it actually happens.
+**What shipped.** The handler now runs the full validator pass —
+`run(intent="", repair=False)` — and returns `validators`, `counterexamples`
+and the score alongside the compiler's errors. Measured at **~110 ms** per
+save, with `terraform validate` staying off for interactive edits, so it sits
+comfortably inside the canvas's 400 ms debounce.
 
-**Fix.** Run the validators (not the repair loop) inside the `/graph` handler,
-debounced, and return `counterexamples` alongside `errors`. The state machine
-already supports it: `run(intent="", repair=False)` is exactly this call. Then
-decide the escalation rule — at what point a violation stops being an overlay
-and becomes an agent turn that proposes a fix. That threshold is a research
-choice worth stating explicitly rather than defaulting.
+Verified: setting `acl: public-read` by hand raises J = 3.0 with
+`s3_public_acl` addressed to `logs-s3` at edit time; reverting clears it.
+
+**The escalation rule, decided.** A hand edit is validated and **never
+repaired**. The alternative — the agent quietly rewriting what someone just
+drew — is precisely the failure mode recorded in G6, and doing it in response to
+a drag would be worse, because no one asked for anything. The position taken
+is that the system reports and waits; escalating to an agent turn is the
+human's call, through `/chat`. State it explicitly in the write-up, because the
+opposite choice is defensible and reviewers will ask.
+
+**Found on the way.** With counterexamples finally reaching a human, the
+Provider Harmonizer's registry-coverage check turned out to flag `versioning` —
+a documented virtual attribute driving the versioning companion — as
+unrecognised. Fixed by folding `virtual_attributes` and their derived keys into
+the known set. Nothing surfaced it before because nothing displayed it.
 
 ### G6 — Conflict detection is declared but unimplemented
 
@@ -330,8 +355,9 @@ need to be pinned:
 Against the proposal's timeline (months 6–7 "advanced features", months 8–9
 "testing and evaluation"):
 
-**First — small, unblocks other work.** G1 (lossy IR) and G5 (validate on human
-edit). Together they are perhaps a day, and G5 alone completes objective (d).
+**~~First — small, unblocks other work. G1 and G5.~~ Done, 2026-09-06.** Both
+closed; objective (d) is met, and the policy set grew from three rules to seven.
+Next is the second group.
 
 **Second — the contribution, in parallel.** G8 makes the multi-agent reasoning
 visible, which is the demo and the thing a study participant reacts to. G6's

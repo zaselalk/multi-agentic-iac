@@ -238,16 +238,44 @@ def project_export(project_id: str):
 
 @app.post("/projects/{project_id}/graph")
 def project_save_graph(project_id: str, request: GraphSave):
-    """Persist a hand edit and recompile. No model call."""
+    """
+    Persist a hand edit, recompile, and prove it. No model call.
+
+    This is the validation loop's human side, and it is what the canvas calls
+    on every drag, drop and field edit. It used to compile and return only the
+    compiler's schema errors, which meant a human could set a bucket's ACL to
+    `public-read` and hear nothing until they happened to start a chat turn -
+    the exact conflict this research is about, detectable by the system and not
+    surfaced when it actually happened.
+
+    It reports and stops there. A hand edit never triggers a repair: the agent
+    silently rewriting what someone just drew is the failure mode in G6, and
+    the deliberate position here is that the system tells the human and waits.
+    Escalating to an agent turn is the human's call, through /chat.
+    """
     _load(project_id)
+    if _orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator is not started.")
+
     record = store.save_graph(project_id, request.nodes, request.edges)
-    compiled = _compile(record)
+    outcome = _orchestrator.run(
+        intent="",
+        nodes=record.get("nodes", []),
+        session_id=project_id,
+        settings=record.get("settings"),
+        repair=False,
+    )
+    compiled = outcome["compiled"]
     return {
-        "graph": _canonical_graph(project_id),
+        "graph": outcome["graph"],
         "terraform": compiled.get("hcl", ""),
         "terraformIr": compiled.get("terraform_ir", {}),
         "errors": compiled.get("errors", []),
         "warnings": compiled.get("warnings", []),
+        # What the edit is now known to violate, each addressed to a node.
+        "validators": outcome["validators"],
+        "counterexamples": outcome["counterexamples"],
+        "score": outcome["score"],
         "updatedAt": record["updated_at"],
     }
 

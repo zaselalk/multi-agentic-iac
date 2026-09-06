@@ -127,7 +127,7 @@ HCL and what the residency policy is checked against.
 | `GET` | `/projects/{id}` | Canvas graph, canonical graph, IR, compiled HCL, validation, chat. |
 | `PATCH` | `/projects/{id}` | Name, description, settings. Recompiles. |
 | `DELETE` | `/projects/{id}` | Remove the project. |
-| `POST` | `/projects/{id}/graph` | Persist a hand edit and recompile. **No model call.** |
+| `POST` | `/projects/{id}/graph` | Persist a hand edit, recompile and prove it. **No model call, no repair.** |
 | `POST` | `/projects/{id}/chat` | One full turn of the state machine, persisted on the way out. |
 | `POST` | `/projects/{id}/verify` | Run every validator. **Observation only** — no model call, no edit. |
 | `GET` | `/projects/{id}/drift` | Desired vs. last-compiled state. |
@@ -152,5 +152,11 @@ A chat response carries the multi-agent surface the canvas renders:
 - **`/verify` never repairs.** A human asking whether what they drew is
   compliant must get an answer about *their* graph, not about one an agent
   quietly fixed on the way past.
+- **A hand edit is validated but never repaired.** `/graph` runs the full
+  validator pass on every drag, drop and field edit (~110 ms; `terraform
+  validate` stays off), and returns `counterexamples` addressed to nodes. It
+  stops there. The agent rewriting what someone just drew is the failure mode
+  in gap G6, so the position taken here is that the system tells the human and
+  waits - escalating to an agent turn is their call, through `/chat`.
 - **Skipped is not passed.** An unproven obligation is reported as unproven,
   in the turn's response and in the evidence bundle.

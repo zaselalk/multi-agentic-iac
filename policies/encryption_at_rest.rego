@@ -31,3 +31,18 @@ deny contains {
 	resource.type == "aws_dynamodb_table"
 	not resource.attributes.server_side_encryption
 }
+
+# Reachable only since G1. `root_block_device` is a static_block the compiler
+# appends to the emitted HCL; it never reached the IR while the IR was built
+# alongside emission rather than parsed out of it.
+deny contains {
+	"node_id": resource.node_id,
+	"rule": "ebs_root_encrypted",
+	"message": sprintf("%s.%s has an unencrypted root volume.", [resource.type, resource.name]),
+	"severity": "error",
+	"fix_hint": "The compiler normally emits root_block_device { encrypted = true }. If it is missing, the registry entry for ec2 has lost its static_blocks.",
+} if {
+	resource := input.ir.resources[_]
+	resource.type == "aws_instance"
+	not resource.attributes.root_block_device.encrypted == true
+}

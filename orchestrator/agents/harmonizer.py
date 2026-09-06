@@ -81,6 +81,16 @@ class ProviderHarmonizer:
                 | set(entry.get("defaults", {}))
                 | set(entry.get("required_attributes", []))
                 | {r["attribute"] for r in entry.get("references", [])}
+                # Virtual attributes are registry concepts even though they are
+                # never emitted as fields - `versioning` on a bucket drives the
+                # aws_s3_bucket_versioning companion. Omitting them here flagged
+                # a documented attribute as unrecognised.
+                | set(entry.get("virtual_attributes", {}))
+                | {
+                    derived
+                    for spec in entry.get("virtual_attributes", {}).values()
+                    for derived in spec.get("derived", {})
+                }
             )
             for key in node.get("desired_state", {}):
                 if key not in known:
