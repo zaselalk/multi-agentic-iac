@@ -18,15 +18,21 @@ import re
 import shutil
 import subprocess
 import tempfile
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .base import counterexample, result
 
 TIMEOUT_S = int(os.environ.get("VISOR_TERRAFORM_TIMEOUT", "120"))
 # Terraform reports a diagnostic against a file and line, not a node. The
-# compiler names every resource after its node's tf_name, so the address in
-# the message is the way back to the canvas.
-ADDRESS = re.compile(r'\b(aws_[a-z0-9_]+)\.([a-zA-Z0-9_]+)\b')
+# compiler names every resource after its node's tf_name, so the address in the
+# message is the way back to the canvas - but it is written two different ways.
+# Expressions use the dotted form; diagnostic headers use the quoted form, as
+# in `on main.tf line 75, in resource "aws_instance" "test_lb_tf":`. Matching
+# only the first leaves every validate error unattributed.
+ADDRESS = re.compile(
+    r'\b(aws_[a-z0-9_]+)\.([a-zA-Z0-9_]+)\b'
+    r'|resource\s+"(aws_[a-z0-9_]+)"\s+"([a-zA-Z0-9_]+)"'
+)
 
 
 class DeployValidator:
@@ -62,14 +68,14 @@ class DeployValidator:
 
             found = [
                 counterexample(
-                    node_id=_node_for(line, compiled),
+                    node_id=_node_for(block, compiled),
                     type_="deploy_error",
-                    message=line.strip(),
+                    message=_summarise(block),
                     rule="terraform_validate",
                     fix_hint="Correct the attribute the provider rejected, or add the "
                              "missing field to the resource registry in schema.json.",
                 )
-                for line in _diagnostics(check["stdout"] + check["stderr"])
+                for block in _diagnostics(check["stdout"] + check["stderr"])
             ]
             return result(self.name, "fail", counterexamples=found, evidence=check)
         finally:
@@ -89,11 +95,49 @@ def _run(command, cwd) -> Dict[str, Any]:
         return {"code": 124, "stdout": "", "stderr": f"timed out after {TIMEOUT_S}s"}
 
 
-def _diagnostics(output: str):
-    """Terraform prints 'Error: ...' followed by context; keep the headline lines."""
-    return [line for line in output.splitlines() if line.strip().startswith("Error:")] or (
-        [output.strip()[:500]] if output.strip() else []
+def _diagnostics(output: str) -> List[str]:
+    """
+    Split Terraform's output into whole diagnostics, headline plus context.
+
+    Keeping only the `Error:` line loses the address: Terraform puts it on the
+    *following* line, as `on main.tf line 75, in resource "aws_instance"
+    "test_lb_tf":`. Without that the finding cannot be attributed to a node,
+    and an unattributed finding is one the canvas cannot draw.
+    """
+    blocks: List[str] = []
+    current: List[str] = []
+    for line in output.splitlines():
+        if line.strip().startswith(("Error:", "Warning:")):
+            if current:
+                blocks.append("\n".join(current).strip())
+            current = [line]
+        elif current:
+            current.append(line)
+    if current:
+        blocks.append("\n".join(current).strip())
+
+    if blocks:
+        return blocks
+    return [output.strip()[:500]] if output.strip() else []
+
+
+def _summarise(block: str) -> str:
+    """One line from a diagnostic: the headline, plus the detail sentence."""
+    lines = [line.strip() for line in block.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    headline = lines[0].split(":", 1)[-1].strip()
+    # The detail is the last prose line - the ones between are the source
+    # excerpt (`on main.tf line N, ...` and the numbered line itself).
+    detail = next(
+        (
+            line
+            for line in reversed(lines[1:])
+            if not line.startswith("on ") and not re.match(r"^\d+:", line)
+        ),
+        "",
     )
+    return f"{headline}: {detail}" if detail else headline
 
 
 def _node_for(message: str, compiled: Dict[str, Any]) -> str:
@@ -102,7 +146,9 @@ def _node_for(message: str, compiled: Dict[str, Any]) -> str:
         r.get("name"): r.get("node_id", "")
         for r in (compiled.get("terraform_ir") or {}).get("resources", [])
     }
-    for _, name in ADDRESS.findall(message):
+    for match in ADDRESS.finditer(message):
+        # group 2 is the dotted form's name, group 4 the quoted form's
+        name = match.group(2) or match.group(4)
         if name in by_tf_name:
             return by_tf_name[name]
     return ""
