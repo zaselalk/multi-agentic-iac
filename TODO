@@ -1,6 +1,0 @@
-- Improve the intermediate representation to have one universal schema and let's propose
- another seperate agent for visualize
-- Implement a way to sync the changes that done as human with the agent orchestraion to validate that 
-- implement the validation loop when we done the changes
-- improve the agent communication
-- think about the benchmark process

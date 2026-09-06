@@ -4,8 +4,9 @@ HTTP front door for the multi-agent orchestrator.
     uvicorn orchestrator.server:app --port 8080
 
 The canvas (visual-devops-builder) talks to this; this talks MCP to
-mcp-server; generation goes through evaluation/eval.py's Azure AI Foundry
-client, so the research pipeline and the product share one backend.
+mcp-server. One chat turn is one pass of the state machine in
+state_machine.py, which is MACOG's orchestration loop with the human's canvas
+as a first-class writer.
 
 Work is organised into projects: one named graph with its own Terraform
 settings, persisted to disk (see projects.py). The MCP server's in-memory
@@ -14,25 +15,19 @@ stored graph before every operation.
 """
 
 import os
-import sys
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "evaluation"))
-)
+from . import llm
+from .adapters import canvas_to_nodes, nodes_to_canvas
+from .mcp_client import MCPClient
+from .projects import ProjectError, store
+from .state_machine import Orchestrator
 
-import eval as pipeline  # noqa: E402  - also loads ../.env via python-dotenv
-
-from .adapters import canvas_to_nodes, nodes_to_canvas  # noqa: E402
-from .agent import GraphAgent, DEFAULT_MODEL  # noqa: E402
-from .mcp_client import MCPClient  # noqa: E402
-from .projects import ProjectError, store  # noqa: E402
-
-app = FastAPI(title="MACOG Orchestrator", version="1.1.0")
+app = FastAPI(title="MACOG Orchestrator", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,7 +37,7 @@ app.add_middleware(
 )
 
 mcp = MCPClient()
-_retriever = None
+_orchestrator: Optional[Orchestrator] = None
 
 
 # =========================================================
@@ -71,8 +66,10 @@ class ProjectChat(BaseModel):
     message: str
     nodes: List[Dict[str, Any]] = Field(default_factory=list)
     edges: List[Dict[str, Any]] = Field(default_factory=list)
-    useRag: bool = False
     model: Optional[str] = None
+    # The human has already accepted a breakpoint this turn would raise, so
+    # destructive edits go through instead of stopping the run.
+    approved: bool = False
 
 
 class ProjectImport(BaseModel):
@@ -92,8 +89,9 @@ class CompileRequest(BaseModel):
 # =========================================================
 @app.on_event("startup")
 def startup():
+    global _orchestrator
     mcp.start()
-    pipeline.setup_azure_foundry_client()
+    _orchestrator = Orchestrator(mcp, llm.setup_client(), llm.DEFAULT_MODEL)
 
 
 @app.on_event("shutdown")
@@ -156,10 +154,17 @@ def _project_payload(record: Dict[str, Any], compiled: Dict[str, Any]) -> Dict[s
 def health():
     return {
         "status": "ok",
-        "model": DEFAULT_MODEL,
+        "model": llm.DEFAULT_MODEL,
         "mcp_server": mcp.server_path,
         "project_dir": store.directory,
         "tools": [t["name"] for t in mcp.list_tools()],
+        # Which validators can actually prove anything right now. A validator
+        # whose tool is missing reports unavailable rather than passing
+        # silently - an unproven obligation must never read as a satisfied one.
+        "validators": {
+            name: validator.availability()
+            for name, validator in (_orchestrator.validators if _orchestrator else {}).items()
+        },
     }
 
 
@@ -249,39 +254,81 @@ def project_save_graph(project_id: str, request: GraphSave):
 
 @app.post("/projects/{project_id}/chat")
 def project_chat(project_id: str, request: ProjectChat):
-    """One agent turn against this project's graph, persisted on the way out."""
+    """One turn of the state machine against this project, persisted on the way out."""
     record = _load(project_id)
+    if _orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator is not started.")
 
-    knowledge, rag_error = "", None
-    if request.useRag:
-        knowledge, rag_error = _ground(request.message)
-
-    agent = GraphAgent(mcp, pipeline.azure_foundry_client, model=request.model)
-    result = agent.run(
-        message=request.message,
-        canvas_nodes=request.nodes,
-        canvas_edges=request.edges,
+    outcome = _orchestrator.run(
+        intent=request.message,
+        nodes=canvas_to_nodes(request.nodes, request.edges),
         session_id=project_id,
-        knowledge=knowledge,
         settings=record.get("settings"),
+        approved=request.approved,
     )
 
-    record = store.save_graph(project_id, result["nodes"], result["edges"])
+    nodes, edges = nodes_to_canvas(
+        outcome["graph"], outcome["compiled"].get("errors", [])
+    )
+    record = store.save_graph(project_id, nodes, edges)
     record = store.append_chat(project_id, [
         {"role": "user", "content": request.message, "timestamp": record["updated_at"]},
-        {"role": "ai", "content": result["chatResponse"], "timestamp": record["updated_at"]},
+        {"role": "ai", "content": outcome["reply"], "timestamp": record["updated_at"]},
     ])
-    result["project"] = store.summarise(record) | {"settings": record.get("settings", {})}
-    result["chat"] = record.get("chat", [])
-    result["graph"] = _canonical_graph(project_id)
 
-    if rag_error:
-        result.setdefault("warnings", []).append({
-            "node_id": "",
-            "message": f"Retrieval grounding unavailable: {rag_error}",
-            "recommendation": "Run without RAG, or rebuild retriever/aws-index against the configured embedding model.",
-        })
-    return result
+    return {
+        "chatResponse": outcome["reply"] or "Updated the infrastructure graph.",
+        "nodes": nodes,
+        "edges": edges,
+        "graph": outcome["graph"],
+        "terraform": outcome["compiled"].get("hcl", ""),
+        "terraformIr": outcome["compiled"].get("terraform_ir", {}),
+        "errors": outcome["compiled"].get("errors", []),
+        "warnings": outcome["compiled"].get("warnings", []),
+        # The multi-agent surface the canvas renders: which validators ran and
+        # what they said, the failures addressed to specific nodes, and the
+        # breakpoints waiting on a human.
+        "validators": outcome["validators"],
+        "counterexamples": outcome["counterexamples"],
+        "breakpoints": outcome["breakpoints"],
+        "repairs": outcome["repairs"],
+        "evidence": outcome["bundle"],
+        "toolTrace": outcome["trace"],
+        "project": store.summarise(record) | {"settings": record.get("settings", {})},
+        "chat": record.get("chat", []),
+    }
+
+
+@app.post("/projects/{project_id}/verify")
+def project_verify(project_id: str):
+    """
+    Run every validator against the stored graph. Observation only.
+
+    This is the human's side of the validation loop: the canvas asks for the
+    graph as it stands to be proven, rather than waiting for the next chat
+    turn. No model is called and the graph is not edited - the answer has to be
+    about the graph the human drew, not about one an agent silently repaired
+    on the way past. `terraform validate` always runs here, unlike in a chat
+    turn.
+    """
+    record = _load(project_id)
+    if _orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator is not started.")
+
+    outcome = _orchestrator.run(
+        intent="",
+        nodes=record.get("nodes", []),
+        session_id=project_id,
+        settings=record.get("settings"),
+        deploy_validation=True,
+        repair=False,
+    )
+    return {
+        "validators": outcome["validators"],
+        "counterexamples": outcome["counterexamples"],
+        "score": outcome["score"],
+        "evidence": outcome["bundle"],
+    }
 
 
 @app.get("/projects/{project_id}/drift")
@@ -311,24 +358,3 @@ def graph_compile(request: CompileRequest):
         "errors": compiled.get("errors", []),
         "warnings": compiled.get("warnings", []),
     }
-
-
-# =========================================================
-# RAG
-# =========================================================
-def _ground(query: str):
-    """Retrieval grounding, reusing the evaluation pipeline's retriever."""
-    global _retriever
-    here = os.path.dirname(os.path.abspath(__file__))
-    try:
-        if _retriever is None:
-            import llama_index_retriever
-            _retriever = llama_index_retriever.Retriever(
-                stored_index=os.path.join(here, "..", "retriever", "aws-index"),
-                path=os.path.join(here, "..", "retriever", "terraform-provider-aws",
-                                  "website", "docs", "r"),
-            )
-        return pipeline.rag_knowledge(_retriever, query), None
-    except Exception as e:
-        _retriever = None
-        return "", str(e)

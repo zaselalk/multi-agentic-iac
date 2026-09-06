@@ -1,6 +1,15 @@
-# Orchestrator-only dependencies. The agent loop, model dispatch and RAG come
-# from evaluation/eval.py, so the environment.yml / conda env it needs must be
-# installed too (or the venv described in orchestrator/README.md).
+# Everything the orchestrator needs. There is no longer a conda environment or
+# a benchmark harness behind it - this is the whole dependency set.
+#
+#   python3 -m venv venv && ./venv/bin/pip install -r orchestrator/requirements.txt
+#
+# Two external binaries are also expected on PATH, both optional; each
+# validator reports `skipped` rather than passing when its tool is missing:
+#   terraform  >= 1.5   deploy validator (terraform validate)
+#   opa        >= 1.0    security prover (policies/*.rego)
+
 fastapi
 uvicorn[standard]
 pydantic
+python-dotenv
+azure-ai-inference
