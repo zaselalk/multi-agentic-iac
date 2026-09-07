@@ -6,6 +6,10 @@ finish the research. Every claim below was checked against the code on the
 
 Gap IDs (`G1`…`G9`) are referenced from the source and from the other READMEs.
 
+This is the register of **what** is missing and why. For **how the rest gets
+finished, in what order and by whom**, see [PLAN.md](PLAN.md), which regroups
+the open gaps into four workstreams.
+
 ---
 
 ## Where the system actually stands
@@ -173,12 +177,39 @@ the largest drop of the eight.
 Also unbuilt: the Cost & Capacity Planner (`validators/cost.py` is an interface
 and a no-op; it returns `skipped`, never a number).
 
+**Correction to an earlier claim here.** This section used to say the
+devcontainer already configures LocalStack. It does not: `post-create.sh`
+installs it with `/opt/conda/bin/pip`, and there is no conda in this container,
+so that line has never run. Docker is absent too, and LocalStack runs as a
+container — so the LocalStack route is not available at all.
+
+It turns out not to be needed. **`terraform plan` runs completely offline**
+with dummy credentials and the provider's skip flags:
+
+```hcl
+provider "aws" {
+  region                      = var.region
+  access_key                  = "test"
+  secret_key                  = "test"
+  skip_credentials_validation = true
+  skip_requesting_account_id  = true
+  skip_metadata_api_check     = true
+  skip_region_validation      = true
+}
+```
+
+Verified on a four-node graph: `Plan: 6 to add, 0 to change, 0 to destroy`, no
+network, no account, no Docker. `-out` plus `terraform show -json` then yields
+the plan JSON — `resource_changes`, `planned_values`, `after_unknown` — which
+is the document MACOG's and IaC-Eval's OPA policies are written against, and
+the thing `policies/README.md` names as what IR evaluation cannot see.
+
 **Fix, in order of value:**
 
-1. `terraform plan` against **LocalStack** — the devcontainer already
-   configures LocalStack credentials, so this needs an endpoint override in the
-   provider block and no real AWS account. Map plan diagnostics back to nodes
-   with the address→`tf_name` lookup already in `validators/deploy.py`.
+1. `terraform plan` **offline**, as above. Map `resource_changes[].address`
+   back to nodes with the address→`tf_name` lookup already in
+   `validators/deploy.py`, and feed the plan JSON to the prover as a second
+   input alongside the IR.
 2. A pinned price book for the ten registered resources, and `estimate()`
    filled in. Stamp it with the catalogue date — a cost figure nobody can trace
    does not belong in a proof-carrying bundle.

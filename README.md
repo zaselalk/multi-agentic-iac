@@ -44,7 +44,8 @@ a hallucinated provider field cannot be emitted at all.
 |---|---|
 | `orchestrator/` | The agent runtime — state machine, blackboard, agents, validators. |
 | `policies/` | Rego rules the Security Prover evaluates every turn. |
-| `docs/RESEARCH-GAPS.md` | **What is still missing, and what to build next.** |
+| `docs/RESEARCH-GAPS.md` | **What is still missing, and why.** The register. |
+| `docs/PLAN.md` | **How the rest gets finished.** Four workstreams, sequenced. |
 | `.visor/` | Project storage (gitignored). |
 
 ## Setup
@@ -97,10 +98,15 @@ Working end to end: the canvas, the graph, the deterministic compiler, the
 Architect's tool-calling loop, the counterexample-guided repair loop, agentic
 breakpoints on destructive edits, and three of the four validators.
 
-Not built: cost estimation, the Memory Curator, `terraform plan` grounding,
-real-state drift, the visual conflict overlay, and the human-in-the-loop
-evaluation protocol. Each is written up with an interface and a route to
-implementation in [docs/RESEARCH-GAPS.md](docs/RESEARCH-GAPS.md).
+Closed so far: G1, G3, G5, G8, and two of G6's three conflict classes — the
+IR describes the emitted HCL, nesting compiles to real references, every hand
+edit is validated as it is made, a concurrent edit is merged rather than
+overwritten, and the canvas draws findings on the nodes that caused them.
+
+Not built: `terraform plan` grounding, cost estimation, the Memory Curator, any
+code→graph direction, real-state drift, and the evaluation protocol. Each is
+written up in [docs/RESEARCH-GAPS.md](docs/RESEARCH-GAPS.md); the order to
+build them in is [docs/PLAN.md](docs/PLAN.md).
 
 ## History
 
