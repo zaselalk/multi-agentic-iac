@@ -48,7 +48,14 @@ from .intent import (
     merge as merge_intent,
     propose,
 )
-from .validators import CostValidator, DeployValidator, PolicyValidator, SchemaValidator
+from .validators import (
+    ORDER as VALIDATOR_ORDER,
+    CostValidator,
+    DeployValidator,
+    PolicyValidator,
+    SchemaValidator,
+    terraform,
+)
 
 # Attempt budget K in Algorithm 1. Each attempt is one model round plus a full
 # validator pass, so this bounds both latency and spend.
@@ -321,7 +328,7 @@ class Orchestrator:
 
     # =====================================================
     def _validate(self, session_id, settings, board: Blackboard, run_deploy: bool):
-        """compile -> review -> prove -> price -> deploy, recording each on the board."""
+        """compile -> deploy -> review -> prove -> price, recording each on the board."""
         board.enter_state("compile")
         compiled = self.mcp.call_tool(
             "compile_terraform", {"session_id": session_id, "settings": settings}
@@ -329,11 +336,22 @@ class Orchestrator:
         board.write("terraform_ir", "engineer", compiled.get("terraform_ir", {}))
         board.write("hcl", "engineer", compiled.get("hcl", ""))
 
+        # --- ground the graph against the provider, if asked ---------------
+        # This runs before proving, which is not MACOG's order. The paper's
+        # DevOps sandbox is a final gate; here the plan is an *input* to the
+        # Security Prover, because a resolved `tags_all` or an expanded
+        # provider default is exactly what the IR cannot carry. Proving after
+        # grounding is the only order in which a plan-grounded policy exists.
+        if run_deploy:
+            board.enter_state("deploy")
+            compiled["plan"] = self._ground(session_id, settings, compiled)
+            board.write("deploy_log", "devops", _loggable(compiled["plan"]))
+
         states = {"schema": "review", "policy": "prove", "cost": "price", "deploy": "deploy"}
         authors = {"schema": "reviewer", "policy": "prover", "cost": "planner", "deploy": "devops"}
 
         results: Dict[str, Dict[str, Any]] = {}
-        for name, validator in self.validators.items():
+        for name in VALIDATOR_ORDER:
             if name == "deploy" and not run_deploy:
                 results[name] = {
                     "name": name, "status": "skipped", "counterexamples": [], "evidence": {},
@@ -341,11 +359,49 @@ class Orchestrator:
                               "(set VISOR_DEPLOY_VALIDATION=1 or request verification).",
                 }
             else:
-                board.enter_state(states[name])
-                results[name] = validator.run(compiled, settings=settings)
+                # Deploy's state was entered above, around the work itself;
+                # re-entering it here would log a state the machine was not in.
+                if name != "deploy":
+                    board.enter_state(states[name])
+                results[name] = self.validators[name].run(compiled, settings=settings)
             board.write(f"{name}_result", authors[name], results[name])
 
         return compiled, results
+
+    def _ground(self, session_id, settings, compiled) -> Dict[str, Any]:
+        """
+        Compile a second time in plan mode, and run Terraform over it.
+
+        Twice, because the HCL a human reads must not carry placeholder
+        credentials and skip flags - those exist so `terraform plan` can run
+        with no cloud account, and putting them in an export would be handing
+        someone a configuration that quietly skips its own safety checks. Both
+        forms come out of the same deterministic compiler; see
+        `compiler.preamble.plan_mode` in schema.json.
+        """
+        plan_mode = self.mcp.call_tool("compile_terraform", {
+            "session_id": session_id,
+            "settings": {**(settings or {}), "plan_mode": True},
+        })
+        return terraform.normalise(terraform.ground(plan_mode.get("hcl", "")), compiled)
+
+
+def _loggable(artifact: Dict[str, Any]) -> Dict[str, Any]:
+    """The plan artifact minus the parts nobody audits - stdout and per-resource
+    values. The blackboard is the trail of what happened, not a second copy of
+    the plan."""
+    return {
+        "status": artifact.get("status"),
+        "stage": artifact.get("stage"),
+        "reason": artifact.get("reason", ""),
+        "terraform_version": artifact.get("terraform_version", ""),
+        "summary": artifact.get("summary", {}),
+        "resources": [
+            {"address": r["address"], "node_id": r["node_id"], "actions": r["actions"]}
+            for r in artifact.get("resources", [])
+        ],
+        "diagnostics": artifact.get("diagnostics", []),
+    }
 
 
 def _identity(counterexample: Dict[str, Any]) -> tuple:

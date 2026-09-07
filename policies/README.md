@@ -20,30 +20,44 @@ must not read as a satisfied one.
 
 ## What they run against
 
-The input document is the compiler's typed IR plus the project's settings:
+Two views of the same graph, plus the project's settings:
 
 ```json
 { "ir":       { "resources": [ {"type", "name", "node_id", "attributes", "depends_on"} ], ... },
+  "plan":     { "resources": [ {"address", "type", "name", "node_id", "actions", "values", "unknown"} ],
+                "summary": {"add": 4, "change": 0, "destroy": 0} },
   "settings": { "region": "eu-west-1", "default_tags": {...}, "allowed_regions": [...] } }
 ```
 
-Evaluating the IR rather than `terraform plan` JSON is deliberate. **Every IR
-resource carries the `node_id` it came from**, so a violation is already
-addressed to a canvas node and can be drawn there. A plan file yields Terraform
-addresses that must be mapped back first, and that mapping is where the visual
-feedback loop loses fidelity.
+**`input.ir` is what the compiler emitted.** Every IR resource carries the
+`node_id` it came from, so a violation is already addressed to a canvas node
+and can be drawn there. It is available on every turn at no cost.
 
-The IR now describes the emitted HCL faithfully: it is parsed back out of the
+The IR describes the emitted HCL faithfully: it is parsed back out of the
 rendered body, so every compliance *companion* the compiler attaches appears in
 it, carrying the `node_id` that induced it and `generated_by: "compiler"`. That
 is what makes `s3_missing_public_access_block`, `ebs_root_encrypted` and
 `missing_default_tags` expressible — before it, each would have fired on every
 resource, because the thing satisfying them was invisible.
 
-The remaining cost of evaluating the IR: a plan file has post-expansion values
-(resolved ARNs, counts, provider-injected defaults) the IR does not. A rule
-needing those belongs in the deploy validator once plan output is available
-there.
+**`input.plan` is what AWS says will actually exist** — `terraform plan`,
+normalised. Since W2 it runs completely offline (see
+`orchestrator/validators/terraform.py`), so this is not the expensive option it
+was scoped as. Plan resources carry `node_id` too, attached on the way in, so a
+plan-grounded finding is as drawable as an IR one.
+
+The distinction is not academic. The IR holds
+`tags = merge(local.default_tags, ...)` because that is the text; the plan
+holds `tags_all = {"Owner": "visor", ...}` because that is the outcome. A
+resource-level tag quietly overriding a project default satisfies `tagging.rego`
+and is a live compliance failure — and nothing before the plan can see it.
+`unknown` carries `after_unknown`, so a rule can also tell that it is being
+asked to prove something Terraform will not know until apply.
+
+**`input.plan` is `null` when deploy validation is off**, which is the default
+for a chat turn. Guard on it — a rule that silently proves nothing is worse
+than one that is honestly skipped. The prover reports which happened as
+`evidence.grounded_in_plan`, and the canvas says so under the validator strip.
 
 ## Writing a rule
 
@@ -60,9 +74,28 @@ deny contains {
 	"message":  "what is wrong",
 	"severity": "error",                    # or "warning" — warnings never
 	"fix_hint": "what to change",           # trigger a repair round
+	"attribute": "acl",                     # optional — see below
+	"patch":     {"acl": null},             # optional — see below
 } if {
 	resource := input.ir.resources[_]
 	# ...
+}
+```
+
+`attribute` and `patch` are what make a violation actionable without a model
+round. Naming the `desired_state` key lets the router tell a rule contradicting
+something the human asked for from one revealing an omission nobody thought
+about; naming the fix lets it be offered as a before → after diff the human can
+take or refuse. A `patch` value of `null` means *remove the key*. Rules about
+the compiler's own invariants name neither — there is nothing on the node to
+change. See `orchestrator/intent.py`.
+
+For a plan-grounded rule, go through a guarded helper so it is undefined rather
+than wrong when the plan did not run:
+
+```rego
+plan_resources := input.plan.resources if {
+	input.plan != null
 }
 ```
 
@@ -79,6 +112,7 @@ repair loop starts to oscillate.
 | `no_public_s3.rego` | `s3_public_acl` (error), `s3_missing_public_access_block` (error), `s3_versioning` (warning) | A public ACL contradicting the compiler's public access block; a bucket whose block is missing or not fully restrictive; unrecoverable buckets. |
 | `tagging.rego` | `missing_default_tags` (error) | A taggable resource not carrying the project's default tags. |
 | `data_residency.rego` | `region_not_allowed` (error) | A project region outside its own `allowed_regions`. |
+| `plan_grounded.rego` | `plan_default_tags_resolved` (error), `plan_value_unknown_until_apply` (warning) | A tag the provider will resolve to something other than the project default; a security switch Terraform cannot know before apply. **Runs only when the plan ran.** |
 
 Three of these check that the compiler's own compliance work is intact -
 `s3_missing_public_access_block`, `ebs_root_encrypted`, `missing_default_tags`.
@@ -92,3 +126,10 @@ risk here but a *contradiction* — AWS provider v4+ fails the apply. That is
 precisely the research case: a human makes a visual change ("make this bucket
 public") that collides with a constraint only the compiler knows about. The
 rule is what lets the canvas say so before an apply fails.
+
+`plan_default_tags_resolved` is the one that shows why both views are kept. On
+a graph where a node sets `Owner = "platform-team"`, the IR rules pass — the
+expression still composes `local.default_tags`, which is all `tagging.rego` can
+check — and the plan rule fails, because `tags_all` resolves to the node's
+value. Same graph, same policy set, two different verdicts, and only one of
+them is about what will exist.

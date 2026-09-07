@@ -1,17 +1,28 @@
 """
 v_policy - the Security Prover.
 
-MACOG evaluates OPA/Rego against `terraform plan` JSON. This runs the same
-engine one stage earlier, against the compiler's typed IR, for a reason
-specific to this research: every IR resource carries the `node_id` it came
-from, so a violation is already addressed to a canvas node. Evaluating a plan
-file would produce Terraform addresses that then have to be mapped back to
-nodes before anything can be drawn on the canvas, and that mapping is exactly
-where the visual feedback loop would lose fidelity.
+MACOG evaluates OPA/Rego against `terraform plan` JSON. This evaluates both,
+in one pass, over one input document:
 
-Cost of that choice: a plan file has post-expansion values (resolved ARNs,
-counts, provider defaults) that the IR does not. Policies needing those belong
-in the deploy validator, once plan output is available there.
+    input.ir    the compiler's typed IR - what the graph says
+    input.plan  the provider's plan - what will actually exist
+
+The IR came first for a reason specific to this research: every IR resource
+carries the `node_id` it came from, so a violation is already addressed to a
+canvas node, whereas plan JSON is addressed the way Terraform thinks and would
+lose that on the way. `validators/terraform.normalise` closes the gap by
+attaching `node_id` to every planned resource, so a plan-grounded rule is as
+drawable as an IR one.
+
+Both are kept because they prove different things. The IR is available on every
+turn at no cost and says what the compiler emitted; the plan needs Terraform
+and a provider download and says what AWS will do with it. A rule about an
+attribute the graph sets belongs on the IR. A rule about a value only the
+provider knows - a resolved `tags_all`, an expanded default, whether something
+is knowable before apply at all - can only be written against the plan.
+
+`input.plan` is absent on turns where deploy validation is off, so a
+plan-grounded rule must guard on its presence or it silently proves nothing.
 
 Rego contract - policies live in ../policies and are evaluated as:
 
@@ -70,8 +81,22 @@ class PolicyValidator:
                 reason=f"no .rego policies found in {POLICY_DIR}.",
             )
 
+        artifact = compiled.get("plan") or {}
         document = {
             "ir": compiled.get("terraform_ir", {}),
+            # Present only when the plan ran and Terraform accepted the
+            # configuration. A half-finished plan would be worse than none:
+            # a rule guarding on `input.plan` would fire against resources the
+            # provider never got as far as expanding.
+            "plan": (
+                {
+                    "resources": artifact.get("resources", []),
+                    "summary": artifact.get("summary", {}),
+                    "terraform_version": artifact.get("terraform_version", ""),
+                }
+                if artifact.get("status") == "pass"
+                else None
+            ),
             "settings": settings or {},
         }
 
@@ -116,7 +141,11 @@ class PolicyValidator:
             "fail" if blocking else "pass",
             counterexamples=found,
             evidence={"policy_dir": POLICY_DIR, "violations": len(found),
-                      "packages": sorted(_rego_files(POLICY_DIR))},
+                      "packages": sorted(_rego_files(POLICY_DIR)),
+                      # Whether the plan-grounded rules could prove anything
+                      # this turn. Without this, a pass over IR-only rules
+                      # reads identically to a pass over everything.
+                      "grounded_in_plan": document["plan"] is not None},
         )
 
 

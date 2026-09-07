@@ -13,7 +13,7 @@ already makes — slide 9 "Orchestration & Logic (The Brain)", slide 10
 
 ## Where things stand
 
-Closed: **G1**, **G3**, **G5**, **G6**, **G8**.
+Closed: **G1**, **G3**, **G4**, **G5**, **G6**, **G8**.
 
 What that adds up to: a human and an agent co-edit one graph; nesting compiles
 to real Terraform references; every hand edit is validated in ~110 ms and
@@ -26,7 +26,7 @@ Remaining, as four workstreams:
 | | Workstream | Gaps | Owner | Blocks |
 |---|---|---|---|---|
 | ~~**W1**~~ | ~~Decide, don't overwrite~~ | G6 (rest), G8 (ghosting) | Brain + small canvas | **Done 2026-09-07** |
-| **W2** | Prove it against the provider | G4 | Brain | Objective (b), (d) |
+| ~~**W2**~~ | ~~Prove it against the provider~~ | G4 | Brain | **Done 2026-09-07** |
 | **W3** | Make bi-directional true | G2 | Eyes & Hands | **The title** |
 | **W4** | Measure it | G7 | Joint | Publishability |
 | — | Tests | G9 | Both, continuous | Reproducibility |
@@ -88,7 +88,25 @@ reply text matches what is actually stored in every case.
 
 ---
 
-## W2 — Prove it against the provider
+## W2 — Prove it against the provider — **DONE, 2026-09-07**
+
+Closed G4 apart from cost, which stays `skipped` for want of a price catalogue
+— the half that must not be guessed at.
+
+All four steps below shipped, plus one that was not planned: `terraform init`
+re-downloaded the provider on every run, so verification took 24 s and failed
+whenever the registry was slow. The provider directory is now a plugin cache on
+the first run and a filesystem mirror on every run after. 24 s → 8 s, offline.
+
+The order of the state machine changed as a consequence: `compile → deploy →
+review → prove → price`, because the plan is an *input* to the prover here
+rather than a final gate. Proving after grounding is the only order in which a
+plan-grounded policy exists.
+
+Running terraform for real found three defects nothing else could have — a node
+with its own `tags` compiling to two `tags` arguments, an init failure reported
+as "no network" that hid it, and a tags map lost to string encoding on the way
+through storage. All three are in RESEARCH-GAPS.md, G4.
 
 **Why it moved up.** This was scoped as needing LocalStack, which this
 container cannot run — no conda, so the install line never worked, and no

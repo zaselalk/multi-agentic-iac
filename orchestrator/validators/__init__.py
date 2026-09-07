@@ -32,6 +32,7 @@ skipped validators in the evidence bundle so nobody mistakes an unproven
 configuration for a proven one.
 """
 
+from . import terraform
 from .base import counterexample, result
 from .cost import CostValidator
 from .deploy import DeployValidator
@@ -39,6 +40,7 @@ from .policy import PolicyValidator
 from .schema import SchemaValidator
 
 __all__ = [
+    "terraform",
     "SchemaValidator",
     "PolicyValidator",
     "CostValidator",
@@ -47,6 +49,17 @@ __all__ = [
     "counterexample",
 ]
 
-# The order the orchestrator runs them in: cheapest and most localising first,
-# so a graph that fails schema validation never reaches terraform.
-ORDER = ("schema", "policy", "cost", "deploy")
+# The order the orchestrator runs them in.
+#
+# Deploy is first, which is not MACOG's order and is deliberate. The paper runs
+# the DevOps sandbox last, as a final gate. Here `terraform plan` produces an
+# artifact the Security Prover reads - post-expansion values the IR cannot have
+# - so proving has to come after grounding or a plan-grounded policy cannot
+# exist at all. It is also the only one that can be skipped for cost, and
+# knowing that early is what lets the rest report honestly about what was
+# proven.
+ORDER = ("deploy", "schema", "policy", "cost")
+
+# What the canvas shows, which is a different question: cheapest and most
+# localising first, so a reader meets a compile failure before a cost estimate.
+DISPLAY_ORDER = ("schema", "policy", "cost", "deploy")

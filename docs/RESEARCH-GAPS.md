@@ -44,15 +44,18 @@ Verified working, end to end:
   a validator strip where `skipped` reads as unproven, an offered fix ghosted
   on the node as before → after, and a breakpoint banner that can actually
   release a paused turn (G8).
-- The DevOps validator: `terraform init -backend=false` + `terraform validate`.
+- The DevOps validator, grounded against the provider: `init -backend=false`,
+  `validate`, `plan -out` and `show -json`, all offline, in ~8 s. The plan is a
+  blackboard artifact the Security Prover reads too, so a policy can be written
+  against values only the provider knows (G4).
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.
 
 Not built at all: cost estimation, the Memory Curator, any code→graph
-direction, spatial semantics, the visual overlay, real-state drift, and an
-evaluation protocol.
+direction, real-state drift, and an evaluation protocol.
 
-**Closed so far:** G1, G5 (2026-09-06); G3, G6, G8 (2026-09-07).
+**Closed so far:** G1, G5 (2026-09-06); G3, G4, G6, G8 (2026-09-07). G4's cost
+half stays open on purpose — see below.
 
 ---
 
@@ -63,7 +66,7 @@ evaluation protocol.
 | **G1** | The IR is lossy — compliance companions never reach it | (a) schema, (b) conflict detection | S | **Closed** 2026-09-06 |
 | **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L | Open |
 | **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M | **Closed** 2026-09-07 |
-| **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M | Open |
+| **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M | **Closed** 2026-09-07 (cost open) |
 | **G5** | A human edit does not trigger the validation loop | **(d) — directly** | S | **Closed** 2026-09-06 |
 | **G6** | Conflict detection is declared in the schema, unimplemented | (b) — **the research question** | M | **Closed** 2026-09-07 |
 | **G7** | No evaluation protocol | all | L | Open |
@@ -170,7 +173,7 @@ nesting, round-tripping, un-nesting, and confirming the dependency is gone.
 registry declares no reference for it. That is the honest answer and the gate
 working; if an RDS should take a subnet group, the fix belongs in the registry.
 
-### G4 — Validators stop short of runtime grounding
+### G4 — Validators stop short of runtime grounding — CLOSED (except cost)
 
 `terraform validate` parses HCL against the provider schema. It does not
 resolve references, expand counts, or discover that an instance type is
@@ -208,15 +211,68 @@ the plan JSON — `resource_changes`, `planned_values`, `after_unknown` — whic
 is the document MACOG's and IaC-Eval's OPA policies are written against, and
 the thing `policies/README.md` names as what IR evaluation cannot see.
 
-**Fix, in order of value:**
+**What shipped (2026-09-07).**
 
-1. `terraform plan` **offline**, as above. Map `resource_changes[].address`
-   back to nodes with the address→`tf_name` lookup already in
-   `validators/deploy.py`, and feed the plan JSON to the prover as a second
-   input alongside the IR.
-2. A pinned price book for the ten registered resources, and `estimate()`
-   filled in. Stamp it with the catalogue date — a cost figure nobody can trace
-   does not belong in a proof-carrying bundle.
+`compiler.preamble.plan_mode` in `schema.json` holds those provider arguments,
+and the orchestrator compiles **twice**: once normally, for the HCL a human
+reads and exports, and once in plan mode, for the copy Terraform is given.
+Emitting placeholder credentials and skip flags into an export would be handing
+someone a configuration that quietly disables its own safety checks, so the two
+never mix — and both come out of the same deterministic compiler.
+
+`validators/terraform.py` runs `init -backend=false` → `validate` →
+`plan -out` → `show -json` and returns an **artifact, not a verdict**:
+`stage` says how far it got, `resources` are the planned changes with a
+`node_id` attached to each, `unknown` is `after_unknown`. `validators/deploy.py`
+interprets it; the Security Prover reads the same artifact as `input.plan`.
+
+**The order changed, deliberately.** MACOG runs the DevOps sandbox last, as a
+final gate. Here the plan is an *input* to the prover, so the machine runs
+`compile → deploy → review → prove → price`. Proving after grounding is the
+only order in which a plan-grounded policy can exist at all.
+
+`policies/plan_grounded.rego` proves the claim. Same graph, same policy set:
+
+| | `input.ir` only | with `input.plan` |
+|---|---|---|
+| A node setting `Owner = "platform-team"` | **pass** | **fail** — `plan_default_tags_resolved` |
+
+The IR holds `tags = merge(local.default_tags, ...)`, which is all
+`tagging.rego` can check and is satisfied. The plan holds
+`tags_all = {"Owner": "platform-team", ...}`, which is what will exist. The
+canvas says which verdict it got, under the validator strip.
+
+**Latency.** A fresh temp directory per run meant `terraform init` re-downloaded
+the AWS provider every time: 24 s per verification, and a failure whenever the
+registry was slow. The provider directory is now reused — as a plugin cache on
+the first run, and as a **filesystem mirror** on every run after, which is
+consulted before the registry, so later runs touch no network at all. **24 s →
+8 s**, and stable. (Cache and mirror must be separate settings over one
+directory, not both at once: Terraform refuses to "install existing provider
+directory to itself".)
+
+**Three real defects this found**, none of which any earlier check could have:
+
+1. A node setting its own `tags` compiled to **two `tags` arguments in one
+   resource** — invalid HCL. Terraform refused to initialise, so nothing
+   downstream ever ran. The compiler now folds a node's tags into the `merge()`
+   call, where they beat both the project defaults and the generated `Name`.
+2. `terraform init` failing was reported as `skipped: no network`, which is how
+   defect 1 stayed hidden — a configuration error explained away as an
+   environment problem. Init failures are now classified, and a config error
+   **fails**.
+3. A `tags` map survived one agent turn and came back from storage as the
+   *string* `"{\"Owner\": \"platform-team\"}"`. The canvas adapter
+   JSON-encodes maps and lists on the way out; nothing decoded them on the way
+   back. `compiler._coerce` now does.
+
+**Still open: cost.** `validators/cost.py` returns `skipped`. The plan makes the
+harder half easy — every SKU is there as the provider resolves it
+(`instance_class`, `allocated_storage`, `storage_type`, `billing_mode`) rather
+than as the graph happens to spell it. What is missing is a pinned price
+catalogue, and that is the half that must not be guessed: a cost figure nobody
+can trace does not belong in a proof-carrying bundle. It stays honestly
+`skipped` until someone pins one.
 
 ### G5 — A human edit does not trigger the validation loop — CLOSED
 
@@ -525,9 +581,12 @@ to the Security Prover.
 can be built against today's system and re-run as gaps close. The ethics
 approval and the text baseline both have lead times measured in weeks.
 
+**~~Then — W2, G4.~~ Done, 2026-09-07.** `terraform plan` runs offline, the
+plan JSON reaches the Security Prover, and a plan-grounded policy catches what
+the IR cannot. Cost stays `skipped` for want of a price catalogue.
+
 **Fourth — largest, and separable.** G2 (code→graph). It is what makes
 "bi-directional" true rather than aspirational, and it is a self-contained
-piece of work someone can own end to end. G4 (LocalStack plan, price book) sits
-alongside it.
+piece of work someone can own end to end.
 
 **Throughout.** G9.

@@ -91,6 +91,15 @@ class ProviderHarmonizer:
                     for spec in entry.get("virtual_attributes", {}).values()
                     for derived in spec.get("derived", {})
                 }
+                # Attributes the compiler fills in itself - an RDS instance's
+                # `identifier`, its `password` variable reference. Setting one
+                # explicitly overrides the computation; it is not unrecognised.
+                | set(entry.get("computed_attributes", {}))
+                # Every taggable resource takes tags, and the compiler folds a
+                # node's own map into the merge() it emits. The registry does
+                # not list `tags` per resource because `taggable: true` already
+                # says it.
+                | ({"tags"} if entry.get("taggable") else set())
             )
             for key in node.get("desired_state", {}):
                 if key not in known:

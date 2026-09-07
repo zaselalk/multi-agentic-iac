@@ -12,14 +12,21 @@ To implement:
 
 1. Add `price_book.json`: {"<terraform_type>": {"<region>": {"<sku>": <usd_per_month>}}},
    stamped with the catalogue date it was pulled from, so a run is reproducible.
-2. Fill in `estimate()` below - walk `compiled["terraform_ir"]["resources"]`,
-   look each up, sum, and attach the line items as evidence.
+2. Fill in `estimate()` below - walk `compiled["plan"]["resources"]`, look each
+   up, sum, and attach the line items as evidence.
 3. Emit a `cost_violation` counterexample per resource when the total exceeds
    `settings["budget"]`, with the over-budget node named so the canvas can
    highlight it.
 
-Until then this returns `skipped`, which the orchestrator reports as an
-unproven obligation rather than a pass.
+Since W2 the harder half of step 2 is done: `compiled["plan"]` carries every
+SKU as the provider resolves it - `instance_class`, `allocated_storage`,
+`storage_type`, `billing_mode` - rather than as the graph happens to spell it,
+so a price book can be keyed on values that actually exist. Fall back to the IR
+when the plan did not run.
+
+What is still missing is only the catalogue, and that is the half that must not
+be guessed at. Until it exists this returns `skipped`, which the orchestrator
+reports as an unproven obligation rather than a pass.
 """
 
 from typing import Any, Dict
