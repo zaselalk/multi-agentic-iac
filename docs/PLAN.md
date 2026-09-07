@@ -13,13 +13,24 @@ already makes — slide 9 "Orchestration & Logic (The Brain)", slide 10
 
 ## Where things stand
 
-Closed: **G1**, **G3**, **G4**, **G5**, **G6**, **G8**.
+Closed: **G1**, **G2**, **G3**, **G4**, **G5**, **G6**, **G8**.
+
+**W1, W2 and W3 are all done. W4 is the only workstream left — and it is the one
+that was supposed to start in parallel weeks ago, because ethics approval is
+the only dependency here that cannot be compressed by working harder.**
 
 What that adds up to: a human and an agent co-edit one graph; nesting compiles
-to real Terraform references; every hand edit is validated in ~110 ms and
-never silently repaired; violations are drawn on the node that caused them; a
-concurrent edit is held and merged rather than overwritten. That is objectives
-(a), (c) and (d) substantially met, and (b) partly.
+to real Terraform references; every hand edit is validated in ~110 ms and never
+silently repaired; violations are drawn on the node that caused them; a
+concurrent edit is held and merged rather than overwritten; a rule that
+contradicts what someone asked for offers its fix instead of taking it; the
+graph is proved against a real `terraform plan`, offline; the generated
+Terraform is read back and checked against the graph on every compile; and
+somebody else's `.tf` file opens as a canvas with an honest report of what
+could not come across.
+
+That is objectives (a), (b), (c) and (d) met. What remains is showing it
+works — which is (e), and W4.
 
 Remaining, as four workstreams:
 
@@ -27,7 +38,7 @@ Remaining, as four workstreams:
 |---|---|---|---|---|
 | ~~**W1**~~ | ~~Decide, don't overwrite~~ | G6 (rest), G8 (ghosting) | Brain + small canvas | **Done 2026-09-07** |
 | ~~**W2**~~ | ~~Prove it against the provider~~ | G4 | Brain | **Done 2026-09-07** |
-| **W3** | Make bi-directional true | G2 | Eyes & Hands | **W3a done**; W3b open |
+| ~~**W3**~~ | ~~Make bi-directional true~~ | G2 | Eyes & Hands | **Done 2026-09-07** |
 | **W4** | Measure it | G7 | Joint | Publishability |
 | — | Tests | G9 | Both, continuous | Reproducibility |
 | — | Proximity | G3 (rest) | Eyes & Hands | Optional |
@@ -180,7 +191,26 @@ This is the defensible version of the claim: *compilation demonstrably
 preserves intent, checked on every turn.* Target it first and treat it as the
 deliverable.
 
-**W3b — import arbitrary Terraform (large, do if time allows).**
+**W3b — import arbitrary Terraform. DONE, 2026-09-07.**
+`decompiler.import_terraform`, the `import_terraform` MCP tool,
+`POST /projects/import/terraform`, and a report dialog on the projects page.
+`python-hcl2` when installed, the built-in parser when not, and the result says
+which ran — mcp-server stays dependency-free otherwise.
+
+It did surface registry gaps immediately, as expected, and two defects in
+W3a's own decompiler that no amount of round-tripping our own output could
+have found. It also needed one thing the plan did not anticipate: `variable`
+blocks have to come across into project settings, or a file tagging
+`Env = var.env` compiles to Terraform that fails `terraform validate` and the
+import is visible but not usable.
+
+The design decision worth recording is the three-way split on what cannot be
+represented — unmapped, **refused**, and merely lossy. A `count = 3` resource
+imported as one node with a footnote produces a canvas that says "one EC2"
+where the file says three: it looks complete and it is wrong. See
+RESEARCH-GAPS.md, G2.
+
+**The original plan:**
 `python-hcl2`, a `POST /projects/import/terraform` endpoint, and auto-layout
 for nodes with no `view`. Expect it to surface registry gaps immediately —
 which is a feature, since it makes compiler coverage measurable for the first
@@ -190,7 +220,9 @@ makes the system adoptable by someone with existing infrastructure.
 **Done when (a):** ~~the round-trip check runs on every compile and fails loudly
 on a deliberately broken registry entry.~~ Met — `BrokenRegistryTest` is
 literally that.
-**Done when (b):** a real `.tf` file opens as a canvas graph.
+**Done when (b):** ~~a real `.tf` file opens as a canvas graph.~~ Met — and the
+imported project compiles clean, passes `terraform validate` and a real
+`terraform plan`, passes every policy, and round-trips byte for byte.
 
 **Files:** new `mcp-server/decompiler.py`, `compiler.py`, `main.py`,
 `orchestrator/state_machine.py`, `server.py`.

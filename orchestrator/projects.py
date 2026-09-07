@@ -126,6 +126,23 @@ class ProjectStore:
             }
             if cleaned:
                 resolved["default_tags"] = cleaned
+
+        # Variable declarations an import carried over from someone's own file.
+        # A resource tagged `Env = var.env` compiles to Terraform that will not
+        # validate unless the declaration comes with it, and there is no node
+        # for a variable to live in. Names are checked because they are emitted
+        # as identifiers, not as strings.
+        variables = settings.get("variables")
+        if isinstance(variables, dict):
+            resolved["variables"] = {
+                str(name): {
+                    key: spec[key]
+                    for key in ("name", "type", "default", "description", "sensitive")
+                    if key in spec
+                }
+                for name, spec in variables.items()
+                if isinstance(spec, dict) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", str(name))
+            }
         return resolved
 
     # ---------------------------------------------------------

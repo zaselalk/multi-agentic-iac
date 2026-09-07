@@ -83,6 +83,13 @@ class ProjectImport(BaseModel):
     name: Optional[str] = None
 
 
+class TerraformImport(BaseModel):
+    """One or more .tf files, concatenated."""
+    terraform: str
+    name: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = None
+
+
 class CompileRequest(BaseModel):
     nodes: List[Dict[str, Any]] = Field(default_factory=list)
     edges: List[Dict[str, Any]] = Field(default_factory=list)
@@ -133,6 +140,20 @@ def _canonical_graph(project_id: str) -> List[Dict[str, Any]]:
     actually used. Call only after _compile has hydrated the session.
     """
     return mcp.call_tool("get_graph", {"session_id": project_id}).get("nodes", [])
+
+
+def _import_report(report: Dict[str, Any]) -> Dict[str, Any]:
+    """The parts of an import result the canvas shows. Nodes are not among them."""
+    return {
+        "parser": report.get("parser", ""),
+        "coverage": report.get("coverage", {}),
+        "variables": sorted(report.get("variables", {})),
+        "unmapped": report.get("unmapped", []),
+        "refused": report.get("refused", []),
+        "unsupported": report.get("unsupported", []),
+        "skipped": report.get("skipped", []),
+        "warnings": report.get("warnings", []),
+    }
 
 
 def _project_payload(record: Dict[str, Any], compiled: Dict[str, Any]) -> Dict[str, Any]:
@@ -203,6 +224,61 @@ def projects_import(request: ProjectImport):
     except ProjectError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return _project_payload(record, _compile(record))
+
+
+@app.post("/projects/import/terraform", status_code=201)
+def projects_import_terraform(request: TerraformImport):
+    """
+    Open somebody else's Terraform as a canvas.
+
+    The other import endpoint takes a file this system wrote. This one takes a
+    file it did not, which is the difference between a round trip and adoption:
+    nobody starts from an empty canvas.
+
+    The response carries an `import` report beside the project, and it is not
+    decoration. A resource type with no registry entry, a resource whose
+    `count` means one node would misrepresent it, a nested block that could not
+    be carried, a module that was not expanded - each is named. An importer
+    that shows a tidy canvas and stays quiet about the third of the file it
+    dropped is worse than one that refuses, because the canvas looks right.
+
+    Nothing is imported when nothing could be: a project holding none of the
+    file is not a useful thing to have created, so that is a 400 carrying the
+    report rather than an empty project.
+    """
+    if not request.terraform.strip():
+        raise HTTPException(status_code=400, detail="No Terraform supplied.")
+
+    report = mcp.call_tool("import_terraform", {"hcl": request.terraform})
+    if report.get("status") == "failed":
+        raise HTTPException(status_code=400, detail=report.get("error", "Could not parse."))
+
+    nodes = report.get("nodes", [])
+    if not nodes:
+        raise HTTPException(status_code=400, detail={
+            "message": "Nothing in that file could be represented on the canvas.",
+            "import": _import_report(report),
+        })
+
+    # Variable declarations the file's own resources reference. They have no
+    # node to live in, and without them the compiled Terraform references
+    # variables nobody declared and fails `terraform validate` - so the import
+    # is visible but not usable, which is not an import.
+    settings = dict(request.settings or {})
+    if report.get("variables"):
+        settings["variables"] = {**report["variables"], **(settings.get("variables") or {})}
+
+    try:
+        record = store.create(
+            name=request.name or "Imported Terraform",
+            description=f'Imported from Terraform: {len(nodes)} resources.',
+            settings=settings or None,
+            nodes=nodes,
+        )
+    except ProjectError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return _project_payload(record, _compile(record)) | {"import": _import_report(report)}
 
 
 @app.get("/projects/{project_id}")

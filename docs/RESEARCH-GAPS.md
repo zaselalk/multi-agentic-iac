@@ -47,6 +47,9 @@ Verified working, end to end:
 - The round-trip check, on every compile: the Terraform this graph produced,
   read back and recompiled, must still be the same Terraform (G2, MACOG
   Eq. 11).
+- Importing Terraform this system did not write, with a report of everything
+  that could not be represented — which doubles as the first measure of how
+  much real Terraform the registry covers (G2).
 - The DevOps validator, grounded against the provider: `init -backend=false`,
   `validate`, `plan -out` and `show -json`, all offline, in ~8 s. The plan is a
   blackboard artifact the Security Prover reads too, so a policy can be written
@@ -54,11 +57,12 @@ Verified working, end to end:
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.
 
-Not built at all: cost estimation, the Memory Curator, importing arbitrary
-Terraform, real-state drift, and an evaluation protocol.
+Not built at all: cost estimation, the Memory Curator, real-state drift, and an
+evaluation protocol.
 
-**Closed so far:** G1, G5 (2026-09-06); G3, G4, G6, G8 (2026-09-07). G4's cost
-half stays open on purpose — see below.
+**Closed so far:** G1, G5 (2026-09-06); G2, G3, G4, G6, G8 (2026-09-07). G4's
+cost half stays open on purpose — see below. **G7 (evaluation) is the only
+gap left that blocks the result.**
 
 ---
 
@@ -67,7 +71,7 @@ half stays open on purpose — see below.
 | | Gap | Blocks objective | Size | Status |
 |---|---|---|---|---|
 | **G1** | The IR is lossy — compliance companions never reach it | (a) schema, (b) conflict detection | S | **Closed** 2026-09-06 |
-| **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L | **Half closed** 2026-09-07 |
+| **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L | **Closed** 2026-09-07 |
 | **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M | **Closed** 2026-09-07 |
 | **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M | **Closed** 2026-09-07 (cost open) |
 | **G5** | A human edit does not trigger the validation loop | **(d) — directly** | S | **Closed** 2026-09-06 |
@@ -111,7 +115,7 @@ double as a regression test for a registry entry silently losing its
 needs G2 — an IR that faithfully describes the HCL is necessary for
 `equiv(P₁, P*)`, not sufficient.
 
-### G2 — No code→graph direction — HALF CLOSED
+### G2 — No code→graph direction — CLOSED
 
 The title promises bi-directional synchronisation. What existed was
 canvas ⇄ graph ⇄ HCL, where the last arrow pointed one way only, with no HCL
@@ -123,8 +127,7 @@ So the system could not:
   preserved intent — **now it does**;
 - reconcile a change made in the `.tf` file by hand, which is the drift case
   the "Zero-Drift Architecture" claim rests on — **now reachable**;
-- import an existing Terraform project onto the canvas — **still open**, and a
-  hard limit on who can adopt it, since nobody starts from an empty canvas.
+- import an existing Terraform project onto the canvas — **now it does**.
 
 **What shipped (2026-09-07): `mcp-server/decompiler.py`.**
 
@@ -182,11 +185,56 @@ registry on purpose — a companion losing its `emit_when`, a companion removed
 after the HCL was written — and asserts the break is reported. A check that
 cannot fail proves nothing.
 
-**Still open: importing arbitrary Terraform.** `POST /projects/import/terraform`,
-`python-hcl2`, and auto-layout for nodes with no `view`. Expect it to surface
-registry gaps immediately, which is a feature — `unmapped` already makes
-compiler coverage measurable. W3a alone supports the title; W3b is what makes
-the system adoptable by someone with existing infrastructure.
+**And then the larger half: importing arbitrary Terraform (W3b).**
+
+`decompiler.import_terraform`, the `import_terraform` MCP tool, and
+`POST /projects/import/terraform`. Same registry inversion, different front
+end: `python-hcl2` when it is installed, the built-in parser when it is not,
+and the result says which ran. Real Terraform has comments, heredocs,
+interpolation, nested blocks, `count`, `for_each`, modules and data sources,
+and hand-rolling a parser for that would get it wrong quietly. `mcp-server`
+stays dependency-free — the import is the one optional extra, documented in its
+`requirements.txt`.
+
+**The design decision that matters is what happens to what it cannot
+represent**, and it is not one rule but three, because the failures are not
+alike:
+
+| | Example | What happens |
+|---|---|---|
+| No registry entry | `aws_kinesis_stream` | listed in `unmapped`; no node |
+| Cardinality or placement changed | `count = 3`, a provider alias | **refused** — listed and not imported |
+| One thing missing from a real resource | a heredoc, a `lifecycle` block, a `root_block_device` richer than the registry's | imported, and the gap named in `unsupported` |
+
+The middle row is the one worth arguing for. A `count = 3` resource *could* be
+imported as one node, with a footnote. That produces a canvas saying "one EC2"
+where the file says three — it looks complete, and it is wrong. A resource
+whose cardinality or account cannot be represented is refused and named; a
+resource that is merely missing an attribute is still worth having.
+
+Variables are the one non-resource block that does come across. A file tagging
+`Env = var.env` compiles to Terraform that fails `terraform validate` if the
+declaration is left behind, so referenced `variable` blocks ride along in
+project settings and the compiler emits them with their declared types. An
+import that is visible but not usable is not an import.
+
+**Verified end to end** on a hand-written file with a module, a data source,
+two variables, a `count`, a heredoc, an unknown resource type and an
+interpolated tag. Four of six resources imported; the other two named. The
+resulting project **compiles clean, passes `terraform validate` and a real
+`terraform plan`, passes every policy, and round-trips byte for byte.**
+
+**Two real defects the import found**, both in W3a's own decompiler and neither
+reachable without a file this system had not written:
+
+1. `_node_tags` read only *quoted* tag values, so `Env = var.env` was dropped
+   and the round trip failed. It now keeps unquoted values as expressions.
+2. `Name` was dropped from every tag map, on the grounds that the compiler
+   generates it. Somebody else's `Name = "main-vpc"` is theirs — it is dropped
+   now only when it equals the resource's local name.
+
+Both were caught by running `/verify` on an imported project, which is the
+round-trip check doing exactly the job it was built for.
 
 ### G3 — Spatial metadata is carried but never interpreted — CLOSED
 
@@ -598,6 +646,9 @@ stdlib only, no network —
 `cd mcp-server && python3 -m unittest discover -s tests -t .`. They pin the
 decompiler and the round-trip property, including the negative cases.
 
+W3b added `tests/test_import.py` — 16 more, covering the importer and its
+report, skipping cleanly when `python-hcl2` is absent. 28 in total.
+
 Still needed, for a research artefact intended for release:
 
 - Compiler: golden HCL for a fixed graph; the ten-resource smoke graph is
@@ -648,9 +699,14 @@ every compile, with tests that break the registry on purpose to prove it can
 fail. "Compilation demonstrably preserves intent" is now checked rather than
 claimed.
 
-**Fourth — largest, and separable.** W3b, the other half of G2: importing
-arbitrary Terraform. It is what makes the system adoptable by someone who
-already has infrastructure, and it is a self-contained piece of work someone
-can own end to end.
+**~~Fourth — W3b, the other half of G2.~~ Done, 2026-09-07.** A `.tf` file this
+system did not write opens as a canvas, and everything that could not come
+across is named rather than dropped.
+
+**What is left is G7, and only G7.** The seeded-fault benchmark, the text-only
+baseline, ethics approval and the human study. Every one of the system gaps is
+now closed or deliberately parked (cost, proximity), so nothing else competes
+for the time — and ethics approval is the one thing that cannot be compressed
+by working harder.
 
 **Throughout.** G9.

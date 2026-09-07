@@ -28,9 +28,12 @@ from ..mcp_client import MCPClient
 
 MAX_TOOL_ROUNDS = int(os.environ.get("VISOR_MAX_TOOL_ROUNDS", "12"))
 
-# set_graph is the orchestrator's own loading mechanism, not something the
-# model should reach for - it would wipe the graph rather than edit it.
-TOOL_DENYLIST = {"set_graph"}
+# Tools the model must not reach for. set_graph is the orchestrator's own
+# loading mechanism and would wipe the graph rather than edit it.
+# import_terraform takes a whole file as an argument, which a model can only
+# supply by retyping one, and round_trip_check reports compiler defects the
+# Architect cannot fix - offering it invites a repair round that cannot help.
+TOOL_DENYLIST = {"set_graph", "import_terraform", "round_trip_check"}
 
 SYSTEM_PROMPT = """\
 You are the Architect in a multi-agent infrastructure system. You edit a live
