@@ -28,6 +28,13 @@ Verified working, end to end:
   what Terraform will actually see (G1).
 - Validation on every hand edit, at ~110 ms per save, reported and never
   auto-repaired (G5).
+- Nesting on the canvas compiling to real Terraform references, gated on the
+  registry, with no edges drawn (G3).
+- Concurrent-edit detection: a hand edit landing mid-turn is held rather than
+  overwritten, and merged on approval where the two edits compose (G6).
+- The canvas rendering all of it — findings on the nodes that caused them,
+  a validator strip where `skipped` reads as unproven, and a breakpoint banner
+  that can actually release a paused turn (G8).
 - The DevOps validator: `terraform init -backend=false` + `terraform validate`.
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.
@@ -36,7 +43,8 @@ Not built at all: cost estimation, the Memory Curator, any code→graph
 direction, spatial semantics, the visual overlay, real-state drift, and an
 evaluation protocol.
 
-**Closed so far:** G1 (2026-09-06), G5 (2026-09-06).
+**Closed so far:** G1, G5 (2026-09-06); G3, G8 (2026-09-07). G6 partly — the
+concurrent-edit half is done, the intent-override half is not.
 
 ---
 
@@ -46,12 +54,12 @@ evaluation protocol.
 |---|---|---|---|---|
 | **G1** | The IR is lossy — compliance companions never reach it | (a) schema, (b) conflict detection | S | **Closed** 2026-09-06 |
 | **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L | Open |
-| **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M | Open |
+| **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M | **Closed** 2026-09-07 |
 | **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M | Open |
 | **G5** | A human edit does not trigger the validation loop | **(d) — directly** | S | **Closed** 2026-09-06 |
-| **G6** | Conflict detection is declared in the schema, unimplemented | (b) — **the research question** | M | Open |
+| **G6** | Conflict detection is declared in the schema, unimplemented | (b) — **the research question** | M | Partly closed |
 | **G7** | No evaluation protocol | all | L | Open |
-| **G8** | The canvas does not render what the backend now emits | (c), (d) | M | Open |
+| **G8** | The canvas does not render what the backend now emits | (c), (d) | M | **Closed** 2026-09-07 |
 | **G9** | No tests, in any of the three repos | reproducibility | M | Open |
 
 ---
@@ -116,30 +124,43 @@ Expect this to be the largest single piece of work, and to surface registry
 gaps immediately — which is a feature, since it makes the compiler's coverage
 measurable for the first time.
 
-### G3 — Spatial metadata is carried but never interpreted
+### G3 — Spatial metadata is carried but never interpreted — CLOSED
 
-The proposal's Visual-Spatial Architect "maps spatial metadata (nesting,
-proximity) from the UI to a Universal Infrastructure Schema". Today `view`
-carries `position`, `parent_id` and `style` faithfully through
-`canvas_to_nodes` and back — and `compiler.py` never reads any of it
-(confirmed: no reference to `view`, `parent_id` or `position` in the compiler).
+**What was wrong.** `view` carried `position`, `parent_id` and `style`
+faithfully and the compiler never read any of it, so dropping an EC2 inside a
+subnet box communicated nothing. Worse than the original write-up recorded:
+`parent_id` was never *produced* either. VPC and subnet nodes were built as
+containers — resizable, transparent, dashed — and nothing ever assigned
+children to them, so nesting was neither expressible nor producible.
 
-So dropping an EC2 node *inside* a subnet box communicates nothing. The
-dependency comes only from an explicitly drawn edge. The nesting a human reads
-as containment is, to the system, decoration.
+**What shipped.** A `spatial_semantics` block in `schema.json` (v3.2.0) states
+what a position is allowed to mean, and both halves now implement it:
 
-**Fix.** Decide the semantics first, then implement:
+- **Nesting is binding, gated on the registry.** A node nested in a parent
+  gains an implied `depends_on` only where the child's registry entry declares
+  a reference whose `from_resource` is the parent's resource. A subnet in a VPC
+  implies `vpc_id`; an EC2 in a VPC implies nothing; an S3 bucket in a VPC
+  implies nothing. The gate is what stops nesting inventing a relationship
+  Terraform has no way to express. Verified: nesting alone, with no edges
+  drawn, compiles to real `vpc_id` and `subnet_id` references.
+- **Proximity is not binding, and not implemented.** Distance is ambiguous —
+  two nodes may sit together because they are related, or because the layout
+  put them there — and an ambiguous signal must not reach the compiled
+  artefact. The block records that it may become a suggestion the human
+  accepts. That is the remaining piece.
+- **The canvas produces it.** Dropping into a container parents to the
+  innermost one; dragging in or out re-parents.
 
-- `parent_id` ⇒ an implied `depends_on`, when the registry declares a reference
-  between the two resource types. This is the whole of "nesting" and is cheap.
-- Proximity is harder and needs a rule you can defend in a write-up. A
-  defensible one: proximity never *creates* infrastructure, it only *proposes*
-  it — the Architect is told which nodes are spatially clustered and may
-  suggest an edge, which the human accepts. That keeps an ambiguous signal out
-  of the compiled artefact while still using it.
+**The property that took the most care: idempotence.** Derived edges are
+returned marked `data.implied` and dashed, and `canvas_to_nodes` skips any edge
+carrying that flag, re-deriving from `parent_id` each time. Without it the
+implication bakes itself in on the first save — the derived edge comes back as
+an explicit one, and un-nesting no longer removes the dependency. Verified by
+nesting, round-tripping, un-nesting, and confirming the dependency is gone.
 
-Record the choice in `schema.json` under a `spatial_semantics` block, so the
-canvas and the compiler agree on what a position means.
+**Found on the way.** `rds` nested in a `subnet` implies nothing, because the
+registry declares no reference for it. That is the honest answer and the gate
+working; if an RDS should take a subnet group, the fix belongs in the registry.
 
 ### G4 — Validators stop short of runtime grounding
 
@@ -216,9 +237,9 @@ conflicts, and only one is handled:
 
 | Conflict | Status |
 |---|---|
-| Human edit violates a policy the agent knows | **Detected** — the prover reports it against the node (though not yet at edit time, see G5) |
-| Human edit and agent edit touch the same node in one turn | **Not detected** — last write wins, silently |
-| Explicit human *intent* violates a policy | **Silently overridden** — see below |
+| Human edit violates a policy the agent knows | **Closed** — reported against the node at edit time (G5) and drawn on it (G8) |
+| Human edit and agent edit touch the same node in one turn | **Closed** 2026-09-07 — detected, held, and merged where the edits compose |
+| Explicit human *intent* violates a policy | **Open** — still silently overridden, see below |
 
 **The third one was found by running the system, and is the sharpest.** Asked
 for "a postgres database with `storage_encrypted` set to false", the Architect
@@ -244,12 +265,33 @@ already knows which attributes it set from the request; mark those as
 rather than to a silent repair. This is `human_in_the_loop` as the schema
 already declares it, applied to the case that actually occurs.
 
-**Fix for the second.** The blackboard already stamps every write with an
-author and a content digest. Compare the digest of the node as loaded (author
-`human`) against the digest after the Architect's edits; where both changed the
-same node, emit a `conflict` artefact and raise a breakpoint instead of
-overwriting. `agentic_merge_with_approval` is then the attribute-level merge on
-top of that, offered to the human rather than applied.
+**The second is now closed.** Detection compares three states rather than two:
+the graph as the turn started, the graph as stored now, and the graph the agent
+produced. A node both sides changed is a conflict; a node one side changed is
+not. Comparison is over `desired_state` and `depends_on` only — a human
+dragging a node while an agent edits its attributes has not disagreed with
+anything, and stopping a turn for that would make the feature unusable.
+
+The schema's two strategies fall out of one test. Two edits to the same node
+touching no attribute in common are not a disagreement, they are a merge
+(`merge_available`). Two edits to the same attribute are a disagreement no rule
+can settle (`human_required`). Either way the turn holds: the human's version
+stands and the agent's is offered, not applied.
+
+**Approval applies the merge, not the agent's graph.** This is the part that
+matters. The agent's graph does not contain the human's mid-turn edit, so
+handing it over on approval would discard that edit — the exact loss this path
+exists to prevent, arriving one step later. Verified: with the human setting
+`acl` and the agent setting `versioning`, the agent-only graph is
+`{bucket, versioning}` and the stored result is `{bucket, acl, versioning}`.
+
+**Found while testing, and worth recording.** The first run reported the agent
+as having changed `acl`, which it never touched. `/graph` was calling
+`set_graph` on the same MCP session the agent was working in, so a human edit
+landed *inside* the agent's in-flight graph and came back out as part of its
+result — the two writers were racing inside the session, not merely at save
+time. Agent turns now run in their own session. Nothing would have surfaced
+this except building the detection and reading its output.
 
 ### G7 — No evaluation protocol
 
@@ -305,34 +347,37 @@ counterbalancing, n ≥ 12, tasks with objectively checkable end states, and
 ethics approval — which has a lead time, so start it before the system is
 finished rather than after.
 
-### G8 — The canvas does not render what the backend emits
+### G8 — The canvas does not render what the backend emits — CLOSED
 
-`POST /projects/{id}/chat` now returns `validators`, `counterexamples`,
-`breakpoints`, `repairs` and `evidence`. The canvas consumes none of them: the
-Zustand store reads only `data.errors` and `data.warnings`
-(`store/useInfraStore.ts`), which are the compiler's schema errors.
+**What was wrong.** The orchestrator had addressed every finding to a node id
+since the validators were built. The canvas read `data.errors` and
+`data.warnings` — the compiler's schema errors — and nothing else, so policy
+violations, skipped validators, conflicts and breakpoints all arrived and were
+dropped.
 
-So the proposal's "Visual Ghosting", "Red-Glow alerts" and Agentic Breakpoint
-approval have a complete backend and no frontend. `BaseNode.tsx` already has an
-`error` status with border, glow and dot — the styling hook exists.
+**What shipped.**
 
-**Fix.**
+- **Findings on nodes.** Status is derived from everything addressed to a node,
+  and `error` and `violation` are separate — a graph that will not compile is a
+  different problem from one that compiles and breaks a rule, so they are red
+  and orange with their own glows. The worst finding is printed on the node
+  itself: a violation you must open a panel to read is one you will not read,
+  and addressing findings to nodes is pointless if they are only listed
+  elsewhere.
+- **A validator strip, with `skipped` as a caution rather than a neutral.** A
+  user who cannot see that cost was never checked will assume it passed.
+- **A Verify button** — prove the stored graph on demand, no model call.
+- **A breakpoint banner**, which is the only way to release one. It shows what
+  each side changed, whether the two compose, and re-sends with approval. For a
+  mergeable conflict it offers "Apply merged version" and promises the human's
+  changes are kept either way — true, because the backend applies the merge and
+  not the agent's graph.
 
-- Extend the store with `counterexamples`, `breakpoints` and `validators`.
-- Node overlay keyed on `counterexample.node_id`, coloured by `severity` and
-  `type` — a policy violation should not look like a schema error.
-- Breakpoint modal: show `detail.nodes` and the reason, and resend the turn
-  with `approved: true` on accept. Until this exists a breakpoint stops a turn
-  with no way for the user to release it.
-- A validator strip showing the four statuses, so `skipped` is visible. A user
-  who cannot see that cost was never checked will assume it passed.
-- Show `repairs > 0` and what changed. The reply text is written before the
-  repair loop runs (see G6), so on any repaired turn the prose and the graph
-  disagree. Until the reply is recomposed after the loop, the canvas is the
-  only place the user can find out that a repair happened at all.
-- "Ghosting" needs one backend addition: a proposed-but-unapplied graph. The
-  cleanest route is for the repair loop to return its patch as a diff the human
-  approves, rather than applying it and reporting afterwards.
+**Still open.** "Ghosting" — a proposed-but-unapplied graph rendered over the
+current one. It needs the backend addition noted originally: the repair loop
+returning its patch as a diff for approval rather than applying it and
+reporting afterwards. The breakpoint banner is the approval surface that would
+carry it, so the frontend groundwork is done.
 
 ### G9 — No tests
 
@@ -359,10 +404,17 @@ Against the proposal's timeline (months 6–7 "advanced features", months 8–9
 closed; objective (d) is met, and the policy set grew from three rules to seven.
 Next is the second group.
 
-**Second — the contribution, in parallel.** G8 makes the multi-agent reasoning
-visible, which is the demo and the thing a study participant reacts to. G6's
-concurrent-edit half makes the research question answerable. G3 decides what a
-position means.
+**~~Second — the contribution, in parallel. G8, G6, G3.~~ Done, 2026-09-07.**
+G8 and G3 closed; G6's concurrent-edit half closed. The multi-agent reasoning
+is now visible on the canvas, nesting compiles to real references, and a
+concurrent edit is detected and merged rather than overwritten.
+
+What remains from this group: G6's **intent-override** half — the repair loop
+still cannot tell an accident it should fix from a decision it should argue
+with — and G8's **ghosting**, which needs the repair loop to return its patch
+as a diff rather than applying it. Both are the same backend change, and the
+breakpoint banner is already the approval surface for it. Do that next, before
+moving on.
 
 **Third — start now regardless of readiness.** G7. The seeded-fault benchmark
 can be built against today's system and re-run as gaps close. The ethics

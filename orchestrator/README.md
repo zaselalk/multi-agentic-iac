@@ -23,6 +23,7 @@ visual-devops-builder  ──HTTP──>  orchestrator  ──MCP/stdio──>  
 | `mcp_client.py` | JSON-RPC 2.0 MCP client over stdio; one long-lived server process. |
 | `adapters.py` | React Flow `{id, type, position, data.details}` <-> canonical `{node_id, resource, desired_state, depends_on, view}`. |
 | `projects.py` | Project storage — one JSON file per project, written atomically. |
+| `conflict.py` | Concurrent-edit detection and the attribute-level merge. |
 | `agents/` | Architect (LLM), Provider Harmonizer, Error-to-Edit router, Memory Curator. |
 | `validators/` | The validator family v = (schema, policy, cost, deploy). |
 
@@ -55,6 +56,16 @@ load ─> plan ─> harmonize ─> compile ─> review ─> prove ─> price ─
 - **repair** — failures go back to the Architect as structured counterexamples,
   each naming the node it belongs to, bounded at `VISOR_MAX_REPAIRS` attempts.
   A repair that does not reduce J stops the loop rather than thrashing.
+- **reconcile** — did the human edit while this turn was running? A model turn
+  takes seconds and they are not idle for them. A node both sides changed is
+  held, not overwritten; where the two edits touch no attribute in common they
+  are merged, and approval applies *that* rather than the agent's graph, which
+  does not contain the human's edit.
+
+Agent turns run in their own MCP session (`{project_id}#turn`). A `/graph` save
+arriving mid-turn calls `set_graph` on the project session; sharing one would
+let that land inside the graph the agent is holding, and the human's edit would
+come back out as part of the agent's result.
 
 ## Validators
 
@@ -137,7 +148,9 @@ HCL and what the residency policy is checked against.
 
 A chat response carries the multi-agent surface the canvas renders:
 `validators`, `counterexamples` (each addressed to a node), `breakpoints`,
-`repairs`, and `evidence` — the proof-carrying bundle for the turn.
+`conflicts`, `resolution` (the merged graph, when the edits compose),
+`applied` (false when a conflict held the agent's graph back), `repairs`, and
+`evidence` — the proof-carrying bundle for the turn.
 
 ## Design notes
 
