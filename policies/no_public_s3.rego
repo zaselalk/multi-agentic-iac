@@ -21,6 +21,9 @@ deny contains {
 	"message": sprintf("%s.%s sets acl=%q, which conflicts with the public access block the compiler attaches to every bucket.", [resource.type, resource.name, resource.attributes.acl]),
 	"severity": "error",
 	"fix_hint": "Remove the acl attribute. Grant access with a bucket policy or CloudFront origin access control instead.",
+	# A null patch value means "remove this key" rather than "set it to null".
+	"attribute": "acl",
+	"patch": {"acl": null},
 } if {
 	resource := input.ir.resources[_]
 	resource.type == "aws_s3_bucket"
@@ -68,6 +71,7 @@ deny contains {
 	"message": sprintf("%s.%s has no versioning enabled.", [resource.type, resource.name]),
 	"severity": "warning",
 	"fix_hint": "Set versioning to true on this bucket node so an accidental delete is recoverable.",
+	"attribute": "versioning",
 } if {
 	resource := input.ir.resources[_]
 	resource.type == "aws_s3_bucket"

@@ -18,6 +18,10 @@ two states the paper does not have:
                 they are ordinary control flow, because the human is present
                 for the whole turn rather than only at the end.
 
+The repair loop also differs. MACOG repairs every counterexample it can reach;
+this one first asks whether the failure is a contradiction of what the human
+asked for, and if it is, offers the fix instead of taking it. See intent.py.
+
 The controller is deterministic. Only the `plan` and `repair` states call a
 model, and both go through the Architect.
 """
@@ -32,9 +36,17 @@ from .agents.repair import ErrorToEdit
 from .blackboard import Blackboard
 from .conflict import (
     detect as detect_conflicts,
+    diverged,
     merge as merge_graphs,
     mergeable,
     summarise as summarise_conflicts,
+)
+from .intent import (
+    compose_reply,
+    from_graph as intent_from_graph,
+    from_trace as intent_from_trace,
+    merge as merge_intent,
+    propose,
 )
 from .validators import CostValidator, DeployValidator, PolicyValidator, SchemaValidator
 
@@ -106,6 +118,10 @@ class Orchestrator:
         board.write("graph", "human", nodes, count=len(nodes))
 
         # --- plan: intent -> graph edits ------------------------------------
+        # What is already asserted on the canvas counts as asked for: the human
+        # drew it, or accepted it on an earlier turn. See intent.py.
+        intended: Dict[str, Dict[str, Any]] = intent_from_graph(nodes)
+
         reply, trace, truncated = "", [], False
         if intent.strip():
             board.enter_state("plan")
@@ -117,6 +133,12 @@ class Orchestrator:
             reply, trace, truncated = planned["reply"], planned["trace"], planned["truncated"]
             board.write("edit", "architect", trace, truncated=truncated)
 
+            # Plus the keys the Architect wrote acting on this request. A
+            # validator objecting to any of these is objecting to something
+            # somebody chose, not to something nobody thought about.
+            intended = merge_intent(intended, intent_from_trace(trace))
+            board.write("intent", "architect", intended, nodes=len(intended))
+
             # --- breakpoint: high-consequence edits wait for a human --------
             destructive = [c for c in trace if c["tool"] in DESTRUCTIVE_TOOLS]
             if destructive and not approved:
@@ -126,7 +148,8 @@ class Orchestrator:
                     {
                         "tools": sorted({c["tool"] for c in destructive}),
                         "nodes": [c["arguments"].get("node_id") for c in destructive],
-                        "message": "The agent deleted resources. Review before this is kept.",
+                        "message": "The agent wants to remove these. Nothing has "
+                                   "been deleted - approve it, or say what to do instead.",
                     },
                 )
 
@@ -141,14 +164,17 @@ class Orchestrator:
         counterexamples = harmonized["counterexamples"] + _all_counterexamples(results)
 
         # --- repair: counterexample-guided, bounded -------------------------
+        # Only failures the human did not ask for are repaired here. The rest
+        # are escalated with a reason and dealt with after the loop.
         attempts = 0
         score = self.router.score(results)
         budget = MAX_REPAIR_ATTEMPTS if repair else 0
-        while attempts < budget:
-            repairable, escalate = self.router.route(counterexamples)
-            if escalate and not repairable:
-                board.breakpoint("unrepairable", {"counterexamples": escalate})
-            if not repairable:
+        escalated: List[Dict[str, Any]] = []
+        cleared: List[Dict[str, Any]] = []
+
+        while budget:
+            repairable, escalated = self.router.route(counterexamples, intended)
+            if not repairable or attempts >= budget:
                 break
 
             board.enter_state("repair")
@@ -162,6 +188,13 @@ class Orchestrator:
             harmonized = self.harmonizer.run(current, settings)
             counterexamples = harmonized["counterexamples"] + _all_counterexamples(results)
 
+            # Which of the failures this round set out to fix are actually
+            # gone. The reply says so afterwards; a silent fix the human is
+            # never told about is only half an improvement on a silent
+            # override.
+            outstanding = {_identity(c) for c in counterexamples}
+            cleared += [c for c in repairable if _identity(c) not in outstanding]
+
             # Algorithm 1 requires J to be non-increasing; if a repair made
             # things worse, stop rather than let the loop thrash.
             new_score = self.router.score(results)
@@ -171,6 +204,35 @@ class Orchestrator:
                 break
             score = new_score
 
+        # --- intent: a rule refusing what the human explicitly asked for ----
+        # Not repaired, and not quietly accepted either. The graph keeps what
+        # was asked for, the violation stays visible on the node, and where the
+        # rule named its own fix that fix is offered as a diff.
+        held = [c for c in escalated if c.get("escalation") == "contradicts_intent"]
+        blocked = [c for c in escalated if c.get("escalation") == "needs_human"]
+        proposal = propose(current, held) if held else None
+
+        if held:
+            board.write("counterexample", "orchestrator", held,
+                        note="contradicts the request; held for a human")
+            board.breakpoint("intent_conflict", {
+                "nodes": sorted({c["node_id"] for c in held if c.get("node_id")}),
+                "counterexamples": held,
+                "patch": (proposal or {}).get("patch", []),
+                "message": (
+                    "You asked for something a policy rejects. What you asked "
+                    "for is what is on the canvas - nothing has been changed "
+                    "behind you."
+                ),
+            })
+        if blocked:
+            board.breakpoint("unrepairable", {
+                "nodes": sorted({c["node_id"] for c in blocked if c.get("node_id")}),
+                "counterexamples": blocked,
+                "message": "These need a change outside the graph - the registry, "
+                           "the policy set or the price book.",
+            })
+
         # --- conflict: did the human edit while this turn was running? -----
         conflicts: List[Dict[str, Any]] = []
         resolution: Optional[List[Dict[str, Any]]] = None
@@ -179,6 +241,14 @@ class Orchestrator:
             latest = reread() or []
             board.write("graph", "human", latest, count=len(latest), when="turn_end")
             conflicts = detect_conflicts(nodes, latest, current)
+            if not conflicts and diverged(nodes, latest):
+                # The human changed something the agent never touched. Nobody
+                # disagrees, so there is nothing to stop for - but the agent's
+                # graph was built from the canvas as it was at turn start and
+                # does not contain the change, so writing it would drop the
+                # edit. Merge it back without asking.
+                resolution = merge_graphs(nodes, latest, current)
+                board.write("edit", "orchestrator", resolution, resolution="auto_merge")
             if conflicts:
                 board.write("conflict", "orchestrator", conflicts)
                 # Where every conflict is disjoint, the two edits compose and
@@ -196,6 +266,21 @@ class Orchestrator:
                         "resolution": "merge_available" if mergeable(conflicts) else "human_required",
                         "message": summarise_conflicts(conflicts),
                     })
+
+        # --- the reply, composed now that the outcome is known --------------
+        # The Architect wrote its sentence in the plan state, before any
+        # validator ran. On its own it describes an intention; this makes it
+        # describe the result.
+        # Work the human has not agreed to is not written, and the reply has to
+        # say so - "I deleted the bucket" while the bucket is still there is the
+        # same failure as a silent repair, wearing the opposite face.
+        withheld = ""
+        if not approved:
+            if conflicts:
+                withheld = "concurrent_edit"
+            elif any(b["reason"] == "destructive_edit" for b in board.breakpoints):
+                withheld = "destructive_edit"
+        reply = compose_reply(reply, cleared, held, withheld=withheld)
 
         board.enter_state("done" if score == 0 else "unsatisfied")
         if not repair and score > 0:
@@ -217,8 +302,18 @@ class Orchestrator:
             "breakpoints": board.breakpoints,
             "conflicts": conflicts,
             # The human's graph with the agent's non-conflicting changes folded
-            # in. None when nothing conflicts, or when a human must decide.
+            # in. Set whenever the human edited mid-turn and the two can be
+            # composed; None when they cannot, or when nothing moved.
             "resolution": resolution,
+            # A fix offered rather than applied: {"patch": [...], "nodes": [...]}.
+            # None when nothing was held back. The nodes are what the graph
+            # would become; the patch is the same thing attribute by attribute,
+            # which is what the canvas draws.
+            "proposal": proposal,
+            # Why this turn's graph must not be written, or "" if it may be.
+            # The caller does the storing, so the decision belongs here and the
+            # test belongs in one place.
+            "withheld": withheld,
             "repairs": attempts,
             "score": score,
             "bundle": board.bundle(),
@@ -251,6 +346,16 @@ class Orchestrator:
             board.write(f"{name}_result", authors[name], results[name])
 
         return compiled, results
+
+
+def _identity(counterexample: Dict[str, Any]) -> tuple:
+    """Enough of a counterexample to recognise it again after a repair round."""
+    return (
+        counterexample.get("node_id", ""),
+        counterexample.get("type", ""),
+        counterexample.get("rule", ""),
+        counterexample.get("message", ""),
+    )
 
 
 def _all_counterexamples(results: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:

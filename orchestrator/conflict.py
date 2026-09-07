@@ -18,7 +18,11 @@ That is the case this detects: three states, not two.
     agent    the graph the Architect produced from base
 
 A node both sides changed is a conflict. A node only one side changed is not,
-and is not worth stopping a turn for.
+and is not worth stopping a turn for - but it still has to be *kept*, which is
+a separate question. `diverged` answers the second one: if the human changed
+anything at all mid-turn, the agent's graph is missing it, and writing that
+graph unchanged loses the edit just as surely as an unresolved conflict would.
+That case merges silently, because there is nothing to decide.
 
 Two things are deliberately *not* conflicts:
 
@@ -103,6 +107,19 @@ def detect(
             "attributes": overlap,
         })
     return conflicts
+
+
+def diverged(base: List[Dict[str, Any]], human: List[Dict[str, Any]]) -> bool:
+    """
+    Did the human change anything that compiles, while the turn was running?
+
+    Layout is excluded for the same reason it is excluded from conflicts: a
+    node that moved has not said anything the compiler will read.
+    """
+    b, h = _by_id(base), _by_id(human)
+    if set(b) != set(h):
+        return True
+    return any(_semantic(b[node_id]) != _semantic(h[node_id]) for node_id in b)
 
 
 def _kind(was, human, agent) -> str:

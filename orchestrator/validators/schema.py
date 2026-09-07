@@ -33,6 +33,7 @@ class SchemaValidator:
                 message=e.get("message", ""),
                 severity=e.get("severity", "error"),
                 fix_hint=_hint(e),
+                attribute=e.get("attribute", ""),
             )
             for e in errors
         ]
@@ -43,6 +44,7 @@ class SchemaValidator:
                 message=w.get("message", ""),
                 severity="warning",
                 fix_hint=w.get("recommendation", ""),
+                attribute=w.get("attribute", ""),
             )
             for w in warnings
         ]

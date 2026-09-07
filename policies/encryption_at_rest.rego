@@ -14,6 +14,11 @@ deny contains {
 	"message": sprintf("%s.%s stores data unencrypted at rest.", [resource.type, resource.name]),
 	"severity": "error",
 	"fix_hint": "Set storage_encrypted to true on this database node.",
+	# Named so the router can tell "the human asked for this" from "nobody
+	# mentioned it", and so the fix can be offered as a diff without a model
+	# round. See orchestrator/intent.py.
+	"attribute": "storage_encrypted",
+	"patch": {"storage_encrypted": true},
 } if {
 	resource := input.ir.resources[_]
 	resource.type == "aws_db_instance"

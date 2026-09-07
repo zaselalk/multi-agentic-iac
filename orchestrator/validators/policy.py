@@ -18,11 +18,20 @@ Rego contract - policies live in ../policies and are evaluated as:
     package visor.<anything>
 
     deny contains {
-      "node_id":  "logs-s3",
-      "rule":     "no_public_s3",
-      "message":  "Bucket is publicly readable",
-      "fix_hint": "Set acl to private"
+      "node_id":   "logs-s3",
+      "rule":      "no_public_s3",
+      "message":   "Bucket is publicly readable",
+      "fix_hint":  "Set acl to private",
+      "attribute": "acl",            # optional
+      "patch":     {"acl": null}     # optional
     } if { ... }
+
+`attribute` and `patch` are what make a violation actionable without a model.
+A rule that names the desired_state key it is about lets the router tell a
+contradiction of the human's request from an omission nobody asked for; a rule
+that also names the fix lets that fix be offered as a diff. Rules about the
+compiler's own invariants (a missing companion, absent default tags) name
+neither, because there is nothing on the node to change.
 
 The query is `data.visor` walked for `deny` sets, so a new .rego file under
 package `visor.*` is picked up with no code change.
@@ -96,6 +105,8 @@ class PolicyValidator:
                 message=v.get("message", ""),
                 severity=v.get("severity", "error"),
                 fix_hint=v.get("fix_hint", ""),
+                attribute=v.get("attribute", ""),
+                patch=v.get("patch"),
             )
             for v in violations
         ]

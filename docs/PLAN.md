@@ -13,7 +13,7 @@ already makes — slide 9 "Orchestration & Logic (The Brain)", slide 10
 
 ## Where things stand
 
-Closed: **G1**, **G3**, **G5**, **G8**, and two of G6's three conflict classes.
+Closed: **G1**, **G3**, **G5**, **G6**, **G8**.
 
 What that adds up to: a human and an agent co-edit one graph; nesting compiles
 to real Terraform references; every hand edit is validated in ~110 ms and
@@ -25,7 +25,7 @@ Remaining, as four workstreams:
 
 | | Workstream | Gaps | Owner | Blocks |
 |---|---|---|---|---|
-| **W1** | Decide, don't overwrite | G6 (rest), G8 (ghosting) | Brain + small canvas | The research question |
+| ~~**W1**~~ | ~~Decide, don't overwrite~~ | G6 (rest), G8 (ghosting) | Brain + small canvas | **Done 2026-09-07** |
 | **W2** | Prove it against the provider | G4 | Brain | Objective (b), (d) |
 | **W3** | Make bi-directional true | G2 | Eyes & Hands | **The title** |
 | **W4** | Measure it | G7 | Joint | Publishability |
@@ -34,9 +34,24 @@ Remaining, as four workstreams:
 
 ---
 
-## W1 — Decide, don't overwrite
+## W1 — Decide, don't overwrite — **DONE, 2026-09-07**
 
-**Why first.** It is small, it finishes the story the other three assume, and
+Closed G6 and G8's ghosting. What shipped, against the five steps below:
+`orchestrator/intent.py` marks intent by *presence* rather than by reading the
+Architect's trace (the trace-only version let a refused fix be reversed on the
+next unrelated turn); `ErrorToEdit.route` stamps each escalation with its
+reason; the fix is computed deterministically from a Rego rule's own `patch`
+field and returned as an offer, so no model round is spent on it;
+`intent.compose_reply` writes the reply after the loop settles; and the offer
+is ghosted on the node as before → after. `POST /projects/{id}/proposal` takes
+it; refusing it needs no request.
+
+One thing was found rather than planned: conflict detection fires only when
+both sides changed a node, so a *human-only* mid-turn edit was being dropped by
+the agent's write with no conflict to show for it. `conflict.diverged` now
+merges that case without asking. See RESEARCH-GAPS.md, G6.
+
+**Why it was first.** It is small, it finishes the story the other three assume, and
 it fixes the one place where the system currently does something dishonest.
 
 Ask for `storage_encrypted: false` today and the Architect builds it, the

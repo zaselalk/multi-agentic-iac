@@ -36,9 +36,14 @@ Verified working, end to end:
   registry, with no edges drawn (G3).
 - Concurrent-edit detection: a hand edit landing mid-turn is held rather than
   overwritten, and merged on approval where the two edits compose (G6).
+- Intent routing: a validator objecting to something somebody actually asked
+  for stops the turn and offers its fix as a diff, instead of reversing the
+  request silently. The reply is composed after the loop settles, so it
+  describes the outcome rather than the plan (G6).
 - The canvas rendering all of it — findings on the nodes that caused them,
-  a validator strip where `skipped` reads as unproven, and a breakpoint banner
-  that can actually release a paused turn (G8).
+  a validator strip where `skipped` reads as unproven, an offered fix ghosted
+  on the node as before → after, and a breakpoint banner that can actually
+  release a paused turn (G8).
 - The DevOps validator: `terraform init -backend=false` + `terraform validate`.
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.
@@ -47,8 +52,7 @@ Not built at all: cost estimation, the Memory Curator, any code→graph
 direction, spatial semantics, the visual overlay, real-state drift, and an
 evaluation protocol.
 
-**Closed so far:** G1, G5 (2026-09-06); G3, G8 (2026-09-07). G6 partly — the
-concurrent-edit half is done, the intent-override half is not.
+**Closed so far:** G1, G5 (2026-09-06); G3, G6, G8 (2026-09-07).
 
 ---
 
@@ -61,7 +65,7 @@ concurrent-edit half is done, the intent-override half is not.
 | **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M | **Closed** 2026-09-07 |
 | **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M | Open |
 | **G5** | A human edit does not trigger the validation loop | **(d) — directly** | S | **Closed** 2026-09-06 |
-| **G6** | Conflict detection is declared in the schema, unimplemented | (b) — **the research question** | M | Partly closed |
+| **G6** | Conflict detection is declared in the schema, unimplemented | (b) — **the research question** | M | **Closed** 2026-09-07 |
 | **G7** | No evaluation protocol | all | L | Open |
 | **G8** | The canvas does not render what the backend now emits | (c), (d) | M | **Closed** 2026-09-07 |
 | **G9** | No tests, in any of the three repos | reproducibility | M | Open |
@@ -247,7 +251,7 @@ a documented virtual attribute driving the versioning companion — as
 unrecognised. Fixed by folding `virtual_attributes` and their derived keys into
 the known set. Nothing surfaced it before because nothing displayed it.
 
-### G6 — Conflict detection is declared but unimplemented
+### G6 — Conflict detection is declared but unimplemented — CLOSED
 
 `schema.json` declares:
 
@@ -270,7 +274,7 @@ conflicts, and only one is handled:
 |---|---|
 | Human edit violates a policy the agent knows | **Closed** — reported against the node at edit time (G5) and drawn on it (G8) |
 | Human edit and agent edit touch the same node in one turn | **Closed** 2026-09-07 — detected, held, and merged where the edits compose |
-| Explicit human *intent* violates a policy | **Open** — still silently overridden, see below |
+| Explicit human *intent* violates a policy | **Closed** 2026-09-07 — held and offered, never reversed |
 
 **The third one was found by running the system, and is the sharpest.** Asked
 for "a postgres database with `storage_encrypted` set to false", the Architect
@@ -288,13 +292,73 @@ encryption disabled" — was generated in the `plan` state, before the repair.
 It is stale and actively misleading. Whatever the escalation policy turns out
 to be, the reply must be composed after the loop settles, not before.
 
-**Fix.** Distinguish a counterexample that contradicts something the human
-explicitly asked for from one that merely reveals an omission. The Architect
-already knows which attributes it set from the request; mark those as
-*intended*, and route a violation on an intended attribute to a breakpoint
-("you asked for X, policy Y forbids it — override, or change the policy?")
-rather than to a silent repair. This is `human_in_the_loop` as the schema
-already declares it, applied to the case that actually occurs.
+**The third is now closed.** `orchestrator/intent.py` draws the distinction,
+and the test it uses is *presence*, not provenance:
+
+> intent = every `desired_state` key that is **there** — the human drew it on
+> the canvas, or the Architect wrote it acting on this request.
+> omission = a failure about a key that is **absent**, or about no key at all.
+
+`storage_encrypted: false` in a node is somebody's decision, whoever made it
+and however long ago. No `storage_encrypted` key at all is nobody's. That is
+the whole rule, it needs no extra model call, and it is reproducible.
+
+The first design read intent from the Architect's tool calls alone. Testing it
+found the hole: refuse the offered fix once, and the next unrelated turn would
+quietly reverse the decision, because the human's choice was in the graph but
+not in that turn's trace. Presence fixes that — a decision made is a decision
+that sticks.
+
+**Routing.** `ErrorToEdit.route` now takes the intent map and stamps every
+escalated counterexample with why: `contradicts_intent` or `needs_human`. A
+contradiction never enters the repair loop, so the graph keeps what was asked
+for, and the violation stays visible on the node.
+
+**The offer, not the edit.** Where a Rego rule names its own fix — the two new
+`attribute` and `patch` fields on a `deny` — the fix is computed
+deterministically and returned as a *proposal*: a list of attribute rows, each
+with what the value is and what it would become. Nothing is written. The human
+takes it (`POST /projects/{id}/proposal`) or refuses it, and refusing needs no
+request at all, because refusing is the state the system is already in.
+
+Applying sends the rows rather than the proposed graph, deliberately: an offer
+sits on screen for as long as it takes to read, and replacing the whole graph
+would roll back anything edited meanwhile — the same failure arriving through
+the fix instead of the repair.
+
+**The reply is composed last.** `intent.compose_reply` runs after the loop
+settles and appends what actually happened: what was silently fixed, what was
+held and why, and whether anything was applied at all. Verified end to end:
+
+> "I have created a PostgreSQL database node named orders-db with storage
+> encryption explicitly turned off as you requested. **I have left orders-db as
+> you asked, but rds_storage_encrypted rejects it: … Set storage_encrypted to
+> true on this database node — take that fix, or keep what you asked for.**"
+
+`repairs: 0`, and the stored graph still says `storage_encrypted: false`.
+
+**A third, found in the same pass.** An unapproved `destructive_edit`
+breakpoint raised, and the chat handler saved the agent's graph anyway - so the
+resource was already gone by the time the banner asked, and "Keep mine" did
+nothing. Being told about a deletion that has happened is not being asked.
+`state_machine.run` now returns `withheld` naming why a turn's graph must not
+be written, the handler stores nothing when it is set, and the reply says so:
+
+> "I have deleted the sessions DynamoDB table. **Nothing has been deleted yet.
+> Removing resources is not something I will do without being asked twice —
+> approve it and I will.**"
+
+Verified: the node survives the unapproved turn and is removed on the approved
+re-send.
+
+**A second loss, found while testing this.** Conflict detection only fires when
+*both* sides changed a node — correctly, since one-sided edits are nothing to
+stop for. But the chat handler then wrote the agent's graph, which was built
+from the canvas as it was at turn start and does not contain a human-only
+mid-turn edit. So the edit was dropped, silently, with no conflict to show for
+it. `conflict.diverged` now detects that case and the merge is applied without
+asking, because there is nothing to ask. Verified: a bucket created out of band
+survived a turn that added an unrelated table, where before it was deleted.
 
 **The second is now closed.** Detection compares three states rather than two:
 the graph as the turn started, the graph as stored now, and the graph the agent
@@ -398,6 +462,14 @@ dropped.
 - **A validator strip, with `skipped` as a caution rather than a neutral.** A
   user who cannot see that cost was never checked will assume it passed.
 - **A Verify button** — prove the stored graph on demand, no model call.
+- **Ghosting** (2026-09-07). An offered fix is drawn on the node it belongs to,
+  as `storage_encrypted false → true`, in a dashed outline labelled "offered,
+  not applied", with its own node status (`proposed`) so it does not read as a
+  bare violation — a violation has nothing waiting on it, and this has a
+  decision waiting on it. The same rows appear in the breakpoint banner with
+  **Apply the fix** / **Keep what I asked for**, and in the findings panel as a
+  `fix offered` chip. The decision is about a resource, so it is shown on the
+  resource; the banner is where it is acted on.
 - **A breakpoint banner**, which is the only way to release one. It shows what
   each side changed, whether the two compose, and re-sends with approval. For a
   mergeable conflict it offers "Apply merged version" and promises the human's
@@ -440,12 +512,14 @@ G8 and G3 closed; G6's concurrent-edit half closed. The multi-agent reasoning
 is now visible on the canvas, nesting compiles to real references, and a
 concurrent edit is detected and merged rather than overwritten.
 
-What remains from this group: G6's **intent-override** half — the repair loop
-still cannot tell an accident it should fix from a decision it should argue
-with — and G8's **ghosting**, which needs the repair loop to return its patch
-as a diff rather than applying it. Both are the same backend change, and the
-breakpoint banner is already the approval surface for it. Do that next, before
-moving on.
+**~~Then — W1, the rest of G6 and G8.~~ Done, 2026-09-07.** The repair loop can
+now tell an accident it should fix from a decision it should argue with, and
+returns its patch as an offer rather than applying it. Both halves were one
+backend change, as predicted; the breakpoint banner was already the approval
+surface. G6 and G8 are closed.
+
+Next is W2 (`docs/PLAN.md`) — `terraform plan` offline, and the plan JSON fed
+to the Security Prover.
 
 **Third — start now regardless of readiness.** G7. The seeded-fault benchmark
 can be built against today's system and re-run as gaps close. The ethics

@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from . import llm
 from .adapters import canvas_to_nodes, nodes_to_canvas
+from .intent import apply_patch
 from .mcp_client import MCPClient
 from .projects import ProjectError, store
 from .state_machine import Orchestrator
@@ -70,6 +71,11 @@ class ProjectChat(BaseModel):
     # The human has already accepted a breakpoint this turn would raise, so
     # destructive edits go through instead of stopping the run.
     approved: bool = False
+
+
+class ProposalApply(BaseModel):
+    """The rows of an offered fix the human has decided to take."""
+    patch: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ProjectImport(BaseModel):
@@ -311,17 +317,21 @@ def project_chat(project_id: str, request: ProjectChat):
         outcome["graph"], outcome["compiled"].get("errors", [])
     )
 
-    # A conflict means the human changed a node this turn also changed. Their
-    # version stands and the agent's is offered, not applied - writing it would
-    # discard an edit they made deliberately, which is the whole failure this
-    # detects. Re-send with approved: true to take the agent's version.
-    held = bool(outcome["conflicts"]) and not request.approved
+    # Two reasons not to write this turn's graph, both released the same way -
+    # re-send with approved: true. A conflict means the human changed a node
+    # this turn also changed, so their version stands and the agent's is
+    # offered. A destructive edit means the agent removed something nobody has
+    # agreed to lose, and announcing a deletion that has already happened is
+    # not asking.
+    held = bool(outcome["withheld"])
     if held:
         record = store.get(project_id) or record
         nodes, edges = store.to_canvas(record, outcome["compiled"].get("errors", []))
-    elif outcome["conflicts"] and outcome["resolution"] is not None:
-        # Approved, and the two edits compose: apply the merge, not the agent's
-        # graph. The agent's graph does not contain the human's mid-turn edit.
+    elif outcome["resolution"] is not None:
+        # The two edits compose: apply the merge, not the agent's graph, which
+        # does not contain the human's mid-turn edit. Reached either because
+        # the human approved a mergeable conflict, or because they changed
+        # something the agent never touched and there was nothing to ask about.
         nodes, edges = nodes_to_canvas(
             outcome["resolution"], outcome["compiled"].get("errors", [])
         )
@@ -354,12 +364,68 @@ def project_chat(project_id: str, request: ProjectChat):
         # the human's, not the agent's.
         "conflicts": outcome["conflicts"],
         "resolution": outcome["resolution"],
+        # "" when the turn was written, otherwise why it was not.
+        "withheld": outcome["withheld"],
+        # A fix a policy asked for that the human's own request forbids. Offered
+        # as a diff, never applied here - POST /proposal takes it.
+        "proposal": outcome["proposal"],
         "applied": not held,
         "repairs": outcome["repairs"],
         "evidence": outcome["bundle"],
         "toolTrace": outcome["trace"],
         "project": store.summarise(record) | {"settings": record.get("settings", {})},
         "chat": record.get("chat", []),
+    }
+
+
+@app.post("/projects/{project_id}/proposal")
+def project_apply_proposal(project_id: str, request: ProposalApply):
+    """
+    Take a fix the last turn offered. No model call.
+
+    The offer is a list of attribute rows, and they are applied to the graph as
+    it stands right now rather than by storing the proposal's own node list. An
+    offer sits on screen for as long as the human takes to read it, and in that
+    time they may have edited something else; replacing the whole graph would
+    quietly roll those edits back, which is the same failure this feature
+    exists to prevent, arriving through the fix instead of the repair.
+
+    Refusing an offer needs no endpoint. The graph already says what the human
+    asked for - the violation simply stays visible on the node.
+    """
+    record = _load(project_id)
+    if _orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator is not started.")
+    if not request.patch:
+        raise HTTPException(status_code=400, detail="No patch rows to apply.")
+
+    patched, stale = apply_patch(record.get("nodes", []), request.patch)
+    record = store.update(project_id, nodes=patched)
+
+    outcome = _orchestrator.run(
+        intent="",
+        nodes=record.get("nodes", []),
+        session_id=project_id,
+        settings=record.get("settings"),
+        repair=False,
+    )
+    compiled = outcome["compiled"]
+    nodes, edges = store.to_canvas(record, compiled.get("errors", []))
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "graph": outcome["graph"],
+        "terraform": compiled.get("hcl", ""),
+        "terraformIr": compiled.get("terraform_ir", {}),
+        "errors": compiled.get("errors", []),
+        "warnings": compiled.get("warnings", []),
+        "validators": outcome["validators"],
+        "counterexamples": outcome["counterexamples"],
+        "score": outcome["score"],
+        # Rows that named a node which is no longer there. Reported rather than
+        # ignored: the human should know their decision was partly moot.
+        "stale": stale,
+        "updatedAt": record["updated_at"],
     }
 
 

@@ -15,7 +15,9 @@ goes back through the Architect. See docs/RESEARCH-GAPS.md: the deterministic
 half is where the loop stops depending on the model for mechanical fixes.
 """
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+from ..intent import contradicts
 
 # Ordered cheapest-to-fix first, which is also MACOG's preference for
 # structural edits before field-level patches.
@@ -36,20 +38,35 @@ NEEDS_HUMAN = {"registry_coverage"}
 class ErrorToEdit:
     name = "repair"
 
-    def route(self, counterexamples: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def route(
+        self,
+        counterexamples: List[Dict[str, Any]],
+        intended: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Split counterexamples into (repairable by the Architect, needs a human).
 
         Warnings are carried to the user but never trigger a repair round -
         spending a model call on a passed-through attribute the provider may
         well accept is how a repair loop starts oscillating.
+
+        `intended` is every attribute somebody has actually asserted - drawn on
+        the canvas, or written by the Architect acting on this request (see
+        intent.py). A failure landing on one of those is escalated rather than
+        repaired: the edit that would clear it is the edit that reverses a
+        decision, and MACOG's admissible-edit set A(CE) has no member that both
+        satisfies the validator and honours the intent. Every escalated
+        counterexample is stamped with which of the two reasons it was.
         """
+        intended = intended or {}
         repairable, escalate = [], []
         for ce in counterexamples:
             if ce.get("severity") != "error":
                 continue
             if ce.get("rule") in NEEDS_HUMAN:
-                escalate.append(ce)
+                escalate.append({**ce, "escalation": "needs_human"})
+            elif contradicts(ce, intended):
+                escalate.append({**ce, "escalation": "contradicts_intent"})
             else:
                 repairable.append(ce)
 
