@@ -7,7 +7,9 @@ already makes — slide 9 "Orchestration & Logic (The Brain)", slide 10
 (Joint)".
 
 `RESEARCH-GAPS.md` stays the register of *what* is missing and why. This is
-*how it gets finished, in what order, by whom*.
+*how it gets finished, in what order, by whom*. What is left after all of it —
+including the parts that were never going to be built — is
+`FUTURE-WORK.md`.
 
 ---
 

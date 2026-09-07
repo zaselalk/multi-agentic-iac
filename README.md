@@ -45,7 +45,8 @@ a hallucinated provider field cannot be emitted at all.
 | `orchestrator/` | The agent runtime — state machine, blackboard, agents, validators. |
 | `policies/` | Rego rules the Security Prover evaluates every turn. |
 | `docs/RESEARCH-GAPS.md` | **What is still missing, and why.** The register. |
-| `docs/PLAN.md` | **How the rest gets finished.** Four workstreams, sequenced. |
+| `docs/PLAN.md` | **How the rest got finished.** Four workstreams, sequenced. W1–W3 done. |
+| `docs/FUTURE-WORK.md` | **What is left, and why.** What the research still needs, what was deliberately left as an interface, and the limits of what was built. |
 | `.visor/` | Project storage (gitignored). |
 
 ## Setup
@@ -98,15 +99,20 @@ Working end to end: the canvas, the graph, the deterministic compiler, the
 Architect's tool-calling loop, the counterexample-guided repair loop, agentic
 breakpoints on destructive edits, and three of the four validators.
 
-Closed so far: G1, G3, G5, G8, and two of G6's three conflict classes — the
-IR describes the emitted HCL, nesting compiles to real references, every hand
-edit is validated as it is made, a concurrent edit is merged rather than
-overwritten, and the canvas draws findings on the nodes that caused them.
+Closed so far: G1, G2, G3, G4, G5, G6, G8 — the IR describes the emitted HCL,
+nesting compiles to real references, every hand edit is validated as it is made
+and never silently repaired, a rule that contradicts what someone asked for
+offers its fix instead of taking it, the graph is proved against a real
+`terraform plan` offline, the generated Terraform is read back and checked
+against the graph on every compile, somebody else's `.tf` file opens as a
+canvas, and findings are drawn on the nodes that caused them.
 
-Not built: `terraform plan` grounding, cost estimation, the Memory Curator, any
-code→graph direction, real-state drift, and the evaluation protocol. Each is
-written up in [docs/RESEARCH-GAPS.md](docs/RESEARCH-GAPS.md); the order to
-build them in is [docs/PLAN.md](docs/PLAN.md).
+Not built: cost estimation, the Memory Curator, real-state drift, and the
+evaluation protocol — **the last of which is the only one that blocks the
+result.** Each is written up in
+[docs/RESEARCH-GAPS.md](docs/RESEARCH-GAPS.md); what remains, why, and in what
+order is [docs/FUTURE-WORK.md](docs/FUTURE-WORK.md). The workstream plan that
+got the rest done is [docs/PLAN.md](docs/PLAN.md).
 
 ## History
 

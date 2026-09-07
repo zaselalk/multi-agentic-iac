@@ -6,9 +6,11 @@ finish the research. Every claim below was checked against the code on the
 
 Gap IDs (`G1`…`G9`) are referenced from the source and from the other READMEs.
 
-This is the register of **what** is missing and why. For **how the rest gets
-finished, in what order and by whom**, see [PLAN.md](PLAN.md), which regroups
-the open gaps into four workstreams.
+This is the register of **what** is missing and why, and what closed it.
+[PLAN.md](PLAN.md) was the order it got done in.
+[FUTURE-WORK.md](FUTURE-WORK.md) is what is *left* — written for someone who
+did not do any of it, and separating what the research still needs from what
+was deliberately left as an interface from the limits of what was built.
 
 ---
 
