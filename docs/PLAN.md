@@ -27,7 +27,7 @@ Remaining, as four workstreams:
 |---|---|---|---|---|
 | ~~**W1**~~ | ~~Decide, don't overwrite~~ | G6 (rest), G8 (ghosting) | Brain + small canvas | **Done 2026-09-07** |
 | ~~**W2**~~ | ~~Prove it against the provider~~ | G4 | Brain | **Done 2026-09-07** |
-| **W3** | Make bi-directional true | G2 | Eyes & Hands | **The title** |
+| **W3** | Make bi-directional true | G2 | Eyes & Hands | **W3a done**; W3b open |
 | **W4** | Measure it | G7 | Joint | Publishability |
 | — | Tests | G9 | Both, continuous | Reproducibility |
 | — | Proximity | G3 (rest) | Eyes & Hands | Optional |
@@ -151,7 +151,21 @@ reviewer will go straight to this.
 that closed G1: parsing HCL *this compiler emitted* is a bounded problem, while
 parsing arbitrary Terraform is not.
 
-**W3a — the round-trip check (small, buys the claim).**
+**W3a — the round-trip check. DONE, 2026-09-07.**
+`mcp-server/decompiler.py`, the `round_trip_check` MCP tool, and the check
+running in the `compile` state on every turn. Cost: nothing measurable — a hand
+edit is still ~110 ms. Plus the first tests in any of the three repos
+(`mcp-server/tests/`, 12 cases, stdlib only), half of which break the registry
+on purpose, because a check that cannot fail proves nothing.
+
+Two things the plan below did not anticipate. Companions are not uniformly
+compiler noise — one with `emit_when` is the *only* place `versioning: true`
+survives, so dropping them all loses it silently. And the comparison had to be
+between the two compiled artifacts rather than the two graphs, which sidesteps
+every unanswerable question about whether a value was explicit or a default.
+See RESEARCH-GAPS.md, G2.
+
+**The original plan:**
 `parse_body` already exists and parses emitted bodies. A decompiler for our own
 output is: split resource blocks, `parse_body` each, invert the registry. The
 inversion surface is genuinely small — **10 resources, 3 references, 3
@@ -173,8 +187,9 @@ which is a feature, since it makes compiler coverage measurable for the first
 time. If the term runs out, W3a alone still supports the title; W3b is what
 makes the system adoptable by someone with existing infrastructure.
 
-**Done when (a):** the round-trip check runs on every compile and fails loudly
-on a deliberately broken registry entry.
+**Done when (a):** ~~the round-trip check runs on every compile and fails loudly
+on a deliberately broken registry entry.~~ Met — `BrokenRegistryTest` is
+literally that.
 **Done when (b):** a real `.tf` file opens as a canvas graph.
 
 **Files:** new `mcp-server/decompiler.py`, `compiler.py`, `main.py`,

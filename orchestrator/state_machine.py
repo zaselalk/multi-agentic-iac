@@ -168,7 +168,11 @@ class Orchestrator:
 
         # --- compile / review / prove / price / deploy ----------------------
         compiled, results = self._validate(session_id, settings, board, run_deploy)
-        counterexamples = harmonized["counterexamples"] + _all_counterexamples(results)
+        counterexamples = (
+            harmonized["counterexamples"]
+            + _round_trip_counterexamples(compiled)
+            + _all_counterexamples(results)
+        )
 
         # --- repair: counterexample-guided, bounded -------------------------
         # Only failures the human did not ask for are repaired here. The rest
@@ -193,7 +197,11 @@ class Orchestrator:
             compiled, results = self._validate(session_id, settings, board, run_deploy)
             current = self.mcp.call_tool("get_graph", {"session_id": session_id}).get("nodes", [])
             harmonized = self.harmonizer.run(current, settings)
-            counterexamples = harmonized["counterexamples"] + _all_counterexamples(results)
+            counterexamples = (
+                harmonized["counterexamples"]
+                + _round_trip_counterexamples(compiled)
+                + _all_counterexamples(results)
+            )
 
             # Which of the failures this round set out to fix are actually
             # gone. The reply says so afterwards; a silent fix the human is
@@ -303,6 +311,9 @@ class Orchestrator:
             "trace": trace,
             "truncated": truncated,
             "compiled": compiled,
+            # equiv(P, decompile(compile(P))): whether the generated Terraform
+            # still describes the graph it came from.
+            "round_trip": compiled.get("round_trip", {}),
             "graph": current,
             "validators": results,
             "counterexamples": counterexamples,
@@ -335,6 +346,15 @@ class Orchestrator:
         )
         board.write("terraform_ir", "engineer", compiled.get("terraform_ir", {}))
         board.write("hcl", "engineer", compiled.get("hcl", ""))
+
+        # --- equiv(P, decompile(compile(P))) - MACOG Eq. 11 ----------------
+        # The direction that did not exist. Cheap enough to run on every
+        # compile, and running it every time is the difference between "the
+        # compiler preserves intent" as a claim and as something checked.
+        compiled["round_trip"] = self.mcp.call_tool(
+            "round_trip_check", {"session_id": session_id, "settings": settings}
+        )
+        board.write("round_trip", "engineer", compiled["round_trip"])
 
         # --- ground the graph against the provider, if asked ---------------
         # This runs before proving, which is not MACOG's order. The paper's
@@ -384,6 +404,37 @@ class Orchestrator:
             "settings": {**(settings or {}), "plan_mode": True},
         })
         return terraform.normalise(terraform.ground(plan_mode.get("hcl", "")), compiled)
+
+
+def _round_trip_counterexamples(compiled: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    A failed round trip, as findings the canvas can draw.
+
+    Addressed to a node like every other counterexample, but never repairable:
+    the graph is not what is wrong. Something the compiler emitted cannot be
+    read back, which is a defect in the compiler or in a registry entry, and no
+    edit to the user's graph will fix it. `round_trip_equivalence` is in
+    NEEDS_HUMAN for exactly that reason.
+    """
+    outcome = compiled.get("round_trip") or {}
+    if outcome.get("equivalent", True):
+        return []
+    return [
+        {
+            "node_id": difference.get("node_id", ""),
+            "type": "round_trip",
+            "rule": "round_trip_equivalence",
+            "message": difference.get("message", ""),
+            "severity": "error",
+            "fix_hint": "The generated Terraform no longer describes the graph it came "
+                        "from. Check the registry entry for this resource in "
+                        "mcp-server/schema.json - a lost companion, static block or "
+                        "attribute mapping is the usual cause.",
+            "attribute": difference.get("attribute", ""),
+            "patch": None,
+        }
+        for difference in outcome.get("differences", [])
+    ]
 
 
 def _loggable(artifact: Dict[str, Any]) -> Dict[str, Any]:

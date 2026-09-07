@@ -22,6 +22,7 @@ from ..intent import contradicts
 # Ordered cheapest-to-fix first, which is also MACOG's preference for
 # structural edits before field-level patches.
 PRIORITY = {
+    "round_trip": 0,
     "dag_cycle_detection": 0,
     "harmonization": 1,
     "schema_validation": 2,
@@ -32,7 +33,12 @@ PRIORITY = {
 
 # Failures no model round can clear, because the fix is outside the graph:
 # the registry, the policy set or the price book has to change first.
-NEEDS_HUMAN = {"registry_coverage"}
+#
+# round_trip_equivalence is the sharpest case. The graph is not what is wrong -
+# something the compiler emitted cannot be read back - so handing it to the
+# Architect would have it edit a correct graph to work around a compiler
+# defect, which is worse than reporting the defect.
+NEEDS_HUMAN = {"registry_coverage", "round_trip_equivalence"}
 
 
 class ErrorToEdit:

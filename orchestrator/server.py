@@ -281,6 +281,8 @@ def project_save_graph(project_id: str, request: GraphSave):
         # What the edit is now known to violate, each addressed to a node.
         "validators": outcome["validators"],
         "counterexamples": outcome["counterexamples"],
+        # Whether the Terraform this produced still describes the graph.
+        "roundTrip": outcome["round_trip"],
         "score": outcome["score"],
         "updatedAt": record["updated_at"],
     }
@@ -358,6 +360,7 @@ def project_chat(project_id: str, request: ProjectChat):
         # breakpoints waiting on a human.
         "validators": outcome["validators"],
         "counterexamples": outcome["counterexamples"],
+        "roundTrip": outcome["round_trip"],
         "breakpoints": outcome["breakpoints"],
         # Nodes the human and the agent both changed during this turn. When
         # non-empty and unapproved, `applied` is false and the graph above is
@@ -421,6 +424,7 @@ def project_apply_proposal(project_id: str, request: ProposalApply):
         "warnings": compiled.get("warnings", []),
         "validators": outcome["validators"],
         "counterexamples": outcome["counterexamples"],
+        "roundTrip": outcome["round_trip"],
         "score": outcome["score"],
         # Rows that named a node which is no longer there. Reported rather than
         # ignored: the human should know their decision was partly moot.
@@ -456,6 +460,7 @@ def project_verify(project_id: str):
     return {
         "validators": outcome["validators"],
         "counterexamples": outcome["counterexamples"],
+        "roundTrip": outcome["round_trip"],
         "score": outcome["score"],
         "evidence": outcome["bundle"],
     }

@@ -44,6 +44,9 @@ Verified working, end to end:
   a validator strip where `skipped` reads as unproven, an offered fix ghosted
   on the node as before → after, and a breakpoint banner that can actually
   release a paused turn (G8).
+- The round-trip check, on every compile: the Terraform this graph produced,
+  read back and recompiled, must still be the same Terraform (G2, MACOG
+  Eq. 11).
 - The DevOps validator, grounded against the provider: `init -backend=false`,
   `validate`, `plan -out` and `show -json`, all offline, in ~8 s. The plan is a
   blackboard artifact the Security Prover reads too, so a policy can be written
@@ -51,8 +54,8 @@ Verified working, end to end:
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.
 
-Not built at all: cost estimation, the Memory Curator, any code→graph
-direction, real-state drift, and an evaluation protocol.
+Not built at all: cost estimation, the Memory Curator, importing arbitrary
+Terraform, real-state drift, and an evaluation protocol.
 
 **Closed so far:** G1, G5 (2026-09-06); G3, G4, G6, G8 (2026-09-07). G4's cost
 half stays open on purpose — see below.
@@ -64,7 +67,7 @@ half stays open on purpose — see below.
 | | Gap | Blocks objective | Size | Status |
 |---|---|---|---|---|
 | **G1** | The IR is lossy — compliance companions never reach it | (a) schema, (b) conflict detection | S | **Closed** 2026-09-06 |
-| **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L | Open |
+| **G2** | No code→graph direction; "bi-directional" is unproven | (a) schema — **the title** | L | **Half closed** 2026-09-07 |
 | **G3** | Spatial metadata is carried but never interpreted | (a) schema, (c) canvas | M | **Closed** 2026-09-07 |
 | **G4** | Validators stop short of runtime grounding | (b) orchestrator, (d) validation loop | M | **Closed** 2026-09-07 (cost open) |
 | **G5** | A human edit does not trigger the validation loop | **(d) — directly** | S | **Closed** 2026-09-06 |
@@ -108,32 +111,82 @@ double as a regression test for a registry entry silently losing its
 needs G2 — an IR that faithfully describes the HCL is necessary for
 `equiv(P₁, P*)`, not sufficient.
 
-### G2 — No code→graph direction
+### G2 — No code→graph direction — HALF CLOSED
 
-The title promises bi-directional synchronisation. What exists is
-canvas ⇄ graph ⇄ HCL, where the last arrow points one way only. There is no
-HCL parser anywhere in the three repos (`grep` for `hcl2`, `parse_hcl`,
-`round_trip`: no hits).
+The title promises bi-directional synchronisation. What existed was
+canvas ⇄ graph ⇄ HCL, where the last arrow pointed one way only, with no HCL
+parser anywhere in the three repos.
 
-So the system cannot:
+So the system could not:
 
-- import an existing Terraform project onto the canvas — a hard limit on who
-  can adopt it, since nobody starts from an empty canvas;
 - run MACOG's round-trip check, which is the guarantee that compilation
-  preserved intent;
+  preserved intent — **now it does**;
 - reconcile a change made in the `.tf` file by hand, which is the drift case
-  the "Zero-Drift Architecture" claim rests on.
+  the "Zero-Drift Architecture" claim rests on — **now reachable**;
+- import an existing Terraform project onto the canvas — **still open**, and a
+  hard limit on who can adopt it, since nobody starts from an empty canvas.
 
-**Fix.** `python-hcl2` (or the `hcl2json` binary) parses HCL to a dict. Write
-`mcp-server/decompiler.py` inverting the registry: `terraform_type` → resource
-key, attributes back through `attribute_map`, `aws_x.y.id` references back to
-`depends_on`. The registry already holds every mapping, so this is an inversion
-rather than new knowledge. Then add `equiv(P, decompile(compile(P)))` as a
-check in the `compile` state, and a `POST /projects/import/terraform` endpoint.
+**What shipped (2026-09-07): `mcp-server/decompiler.py`.**
 
-Expect this to be the largest single piece of work, and to surface registry
-gaps immediately — which is a feature, since it makes the compiler's coverage
-measurable for the first time.
+The restriction is what makes it tractable, and it is the same insight that
+closed G1: parsing HCL *this compiler emitted* is a bounded problem. Arbitrary
+Terraform means modules, `count`, `for_each`, dynamic blocks, interpolation and
+provider aliases. Registry-driven output from ten resource types means
+splitting blocks and inverting a table that already exists. No `python-hcl2`,
+no new dependency — `parse_body` was already there, because the IR is parsed
+out of the emitted body.
+
+What is inverted:
+
+| In the HCL | Recovered as |
+|---|---|
+| `resource` block | a node, keyed by its Terraform local name |
+| a companion | dropped — **unless** it carries intent (below) |
+| `static_blocks` | dropped; the compiler regenerates them |
+| `tags = merge(local.default_tags, {…})` | the map, minus the generated `Name` |
+| a value equal to the registry default | dropped — it is the registry's, not the user's |
+| a value equal to a `computed_attributes` template | dropped, same reason |
+| any `aws_x.y` address in the block | `depends_on` |
+| a type no registry entry accounts for | reported in `unmapped`, never silently dropped |
+
+**Companions are not uniformly noise, and assuming they were would have been a
+silent bug.** A bucket's public access block is pure compiler output. But a
+companion with `emit_when` exists *because* a node asked for it, so
+`aws_s3_bucket_versioning` being present is the only place `versioning: true`
+survives — the attribute is virtual and never emitted as a field. Dropping all
+companions alike loses it without a trace, which is precisely the class of loss
+the check is for.
+
+**The comparison is between the two compiled artifacts, not the two graphs.**
+Comparing graphs drowns in questions with no answer — was this value explicit
+or a default, did the user write `class` or `instance_class` — none of which
+change what Terraform receives. Comparing what they compile to asks the only
+question that matters: *does the graph recovered from this file still produce
+this file.* Differences are reported per resource, addressed to nodes.
+
+It runs on **every compile**, in the `compile` state, and costs nothing
+measurable — a hand edit is still ~110 ms end to end. A failure is reported and
+**never repaired**: the graph is not what is wrong, so handing it to the
+Architect would have it edit a correct graph to work around a compiler defect.
+`round_trip_equivalence` is in `NEEDS_HUMAN` for that reason. The canvas shows
+the verdict whether it passes or fails — a claim nobody can see being tested is
+a claim.
+
+**Tested, including the failures.** `mcp-server/tests/test_round_trip.py`, 12
+cases, stdlib only:
+`python3 -m unittest discover -s tests -t .`. One node of **every registered
+type** in one graph round-trips byte for byte, which makes the coverage claim
+concrete: a new resource type that cannot be read back fails the day it is
+added, not the day someone tries to import a file. Half the file breaks the
+registry on purpose — a companion losing its `emit_when`, a companion removed
+after the HCL was written — and asserts the break is reported. A check that
+cannot fail proves nothing.
+
+**Still open: importing arbitrary Terraform.** `POST /projects/import/terraform`,
+`python-hcl2`, and auto-layout for nodes with no `view`. Expect it to surface
+registry gaps immediately, which is a feature — `unmapped` already makes
+compiler coverage measurable. W3a alone supports the title; W3b is what makes
+the system adoptable by someone with existing infrastructure.
 
 ### G3 — Spatial metadata is carried but never interpreted — CLOSED
 
@@ -540,13 +593,18 @@ carry it, so the frontend groundwork is done.
 
 ### G9 — No tests
 
-`git ls-files | grep -i test` returns nothing in any of the three repos. For a
-research artefact intended for release, the compiler and the state machine both
-need to be pinned:
+First ones landed with W3a: `mcp-server/tests/test_round_trip.py`, 12 cases,
+stdlib only, no network —
+`cd mcp-server && python3 -m unittest discover -s tests -t .`. They pin the
+decompiler and the round-trip property, including the negative cases.
+
+Still needed, for a research artefact intended for release:
 
 - Compiler: golden HCL for a fixed graph; the ten-resource smoke graph is
   already the informal version of this.
-- Adapters: `canvas_to_nodes ∘ nodes_to_canvas` round-trip.
+- Adapters: `canvas_to_nodes ∘ nodes_to_canvas` round-trip. W2 found a real
+  loss here — a `tags` map came back as a JSON string — which is exactly what
+  this test would have caught first.
 - State machine: the repair loop with a stub Architect, asserting J is
   non-increasing and the budget is respected.
 - Policies: `opa test` — Rego has a native test framework, and the seeded-fault
@@ -585,8 +643,14 @@ approval and the text baseline both have lead times measured in weeks.
 plan JSON reaches the Security Prover, and a plan-grounded policy catches what
 the IR cannot. Cost stays `skipped` for want of a price catalogue.
 
-**Fourth — largest, and separable.** G2 (code→graph). It is what makes
-"bi-directional" true rather than aspirational, and it is a self-contained
-piece of work someone can own end to end.
+**~~Then — W3a, half of G2.~~ Done, 2026-09-07.** The round-trip check runs on
+every compile, with tests that break the registry on purpose to prove it can
+fail. "Compilation demonstrably preserves intent" is now checked rather than
+claimed.
+
+**Fourth — largest, and separable.** W3b, the other half of G2: importing
+arbitrary Terraform. It is what makes the system adoptable by someone who
+already has infrastructure, and it is a self-contained piece of work someone
+can own end to end.
 
 **Throughout.** G9.
