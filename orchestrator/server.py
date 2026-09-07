@@ -287,18 +287,48 @@ def project_chat(project_id: str, request: ProjectChat):
     if _orchestrator is None:
         raise HTTPException(status_code=503, detail="Orchestrator is not started.")
 
+    def _stored_now() -> List[Dict[str, Any]]:
+        """The graph as stored right now - a /graph save may have landed mid-turn."""
+        latest = store.get(project_id)
+        return (latest or {}).get("nodes", [])
+
+    # The agent works in its own MCP session, not the project's. A /graph save
+    # arriving mid-turn calls set_graph on the project session; sharing one
+    # would let that land inside the graph the agent is holding, so the human's
+    # edit would come back out as part of the agent's result and the two would
+    # be indistinguishable. One turn session per project, reused - turns for a
+    # project are serial, so this stays bounded.
     outcome = _orchestrator.run(
         intent=request.message,
         nodes=canvas_to_nodes(request.nodes, request.edges),
-        session_id=project_id,
+        session_id=f"{project_id}#turn",
         settings=record.get("settings"),
         approved=request.approved,
+        reread=_stored_now,
     )
 
     nodes, edges = nodes_to_canvas(
         outcome["graph"], outcome["compiled"].get("errors", [])
     )
-    record = store.save_graph(project_id, nodes, edges)
+
+    # A conflict means the human changed a node this turn also changed. Their
+    # version stands and the agent's is offered, not applied - writing it would
+    # discard an edit they made deliberately, which is the whole failure this
+    # detects. Re-send with approved: true to take the agent's version.
+    held = bool(outcome["conflicts"]) and not request.approved
+    if held:
+        record = store.get(project_id) or record
+        nodes, edges = store.to_canvas(record, outcome["compiled"].get("errors", []))
+    elif outcome["conflicts"] and outcome["resolution"] is not None:
+        # Approved, and the two edits compose: apply the merge, not the agent's
+        # graph. The agent's graph does not contain the human's mid-turn edit.
+        nodes, edges = nodes_to_canvas(
+            outcome["resolution"], outcome["compiled"].get("errors", [])
+        )
+        record = store.save_graph(project_id, nodes, edges)
+    else:
+        record = store.save_graph(project_id, nodes, edges)
+
     record = store.append_chat(project_id, [
         {"role": "user", "content": request.message, "timestamp": record["updated_at"]},
         {"role": "ai", "content": outcome["reply"], "timestamp": record["updated_at"]},
@@ -319,6 +349,12 @@ def project_chat(project_id: str, request: ProjectChat):
         "validators": outcome["validators"],
         "counterexamples": outcome["counterexamples"],
         "breakpoints": outcome["breakpoints"],
+        # Nodes the human and the agent both changed during this turn. When
+        # non-empty and unapproved, `applied` is false and the graph above is
+        # the human's, not the agent's.
+        "conflicts": outcome["conflicts"],
+        "resolution": outcome["resolution"],
+        "applied": not held,
         "repairs": outcome["repairs"],
         "evidence": outcome["bundle"],
         "toolTrace": outcome["trace"],

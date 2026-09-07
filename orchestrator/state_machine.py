@@ -23,13 +23,19 @@ model, and both go through the Architect.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from .agents.architect import Architect
 from .agents.curator import MemoryCurator
 from .agents.harmonizer import ProviderHarmonizer
 from .agents.repair import ErrorToEdit
 from .blackboard import Blackboard
+from .conflict import (
+    detect as detect_conflicts,
+    merge as merge_graphs,
+    mergeable,
+    summarise as summarise_conflicts,
+)
 from .validators import CostValidator, DeployValidator, PolicyValidator, SchemaValidator
 
 # Attempt budget K in Algorithm 1. Each attempt is one model round plus a full
@@ -72,6 +78,7 @@ class Orchestrator:
         deploy_validation: Optional[bool] = None,
         approved: bool = False,
         repair: bool = True,
+        reread: Optional[Callable[[], List[Dict[str, Any]]]] = None,
     ) -> Dict[str, Any]:
         """
         One turn. `nodes` are canonical nodes (see adapters.canvas_to_nodes).
@@ -83,6 +90,11 @@ class Orchestrator:
         report, but nothing calls a model and nothing edits the graph. That is
         what a human asking "is what I have drawn compliant?" needs - a repair
         loop would answer for a graph they never approved.
+
+        `reread` returns the stored graph as it is *now*. A model turn takes
+        seconds and the human is not idle for them, so the world may have moved
+        underneath: without this the agent's result is written over whatever
+        they saved meanwhile, and nobody is told it existed.
         """
         settings = settings or {}
         board = Blackboard(session_id, intent)
@@ -159,6 +171,32 @@ class Orchestrator:
                 break
             score = new_score
 
+        # --- conflict: did the human edit while this turn was running? -----
+        conflicts: List[Dict[str, Any]] = []
+        resolution: Optional[List[Dict[str, Any]]] = None
+        if reread is not None and intent.strip():
+            board.enter_state("reconcile")
+            latest = reread() or []
+            board.write("graph", "human", latest, count=len(latest), when="turn_end")
+            conflicts = detect_conflicts(nodes, latest, current)
+            if conflicts:
+                board.write("conflict", "orchestrator", conflicts)
+                # Where every conflict is disjoint, the two edits compose and
+                # the merge is what approval should apply - handing over the
+                # agent's graph instead would discard the human's mid-turn edit,
+                # which is the loss this whole path exists to prevent, arriving
+                # one step later.
+                if mergeable(conflicts):
+                    resolution = merge_graphs(nodes, latest, current)
+                    board.write("edit", "orchestrator", resolution, resolution="merge")
+                if not approved:
+                    board.breakpoint("concurrent_edit", {
+                        "nodes": [c["node_id"] for c in conflicts],
+                        "conflicts": conflicts,
+                        "resolution": "merge_available" if mergeable(conflicts) else "human_required",
+                        "message": summarise_conflicts(conflicts),
+                    })
+
         board.enter_state("done" if score == 0 else "unsatisfied")
         if not repair and score > 0:
             board.write("counterexample", "orchestrator", counterexamples,
@@ -177,6 +215,10 @@ class Orchestrator:
             "validators": results,
             "counterexamples": counterexamples,
             "breakpoints": board.breakpoints,
+            "conflicts": conflicts,
+            # The human's graph with the agent's non-conflicting changes folded
+            # in. None when nothing conflicts, or when a human must decide.
+            "resolution": resolution,
             "repairs": attempts,
             "score": score,
             "bundle": board.bundle(),
