@@ -173,6 +173,14 @@ class Orchestrator:
             + _round_trip_counterexamples(compiled)
             + _all_counterexamples(results)
         )
+        # What was wrong before anything was done about it. The returned
+        # `counterexamples` are what is *still* wrong at the end, and the two
+        # are different questions: "did a validator catch this" is answered
+        # here, "is it still broken" is answered there. Anything measuring
+        # detection against the final list scores a successful repair as a
+        # miss - which is exactly what the seeded-fault benchmark did until it
+        # was run with a real Architect.
+        initial = list(counterexamples)
 
         # --- repair: counterexample-guided, bounded -------------------------
         # Only failures the human did not ask for are repaired here. The rest
@@ -317,6 +325,8 @@ class Orchestrator:
             "graph": current,
             "validators": results,
             "counterexamples": counterexamples,
+            # The first pass, before any repair. See above.
+            "initial_counterexamples": initial,
             "breakpoints": board.breakpoints,
             "conflicts": conflicts,
             # The human's graph with the agent's non-conflicting changes folded

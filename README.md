@@ -47,6 +47,7 @@ a hallucinated provider field cannot be emitted at all.
 | `docs/RESEARCH-GAPS.md` | **What is still missing, and why.** The register. |
 | `docs/PLAN.md` | **How the rest got finished.** Four workstreams, sequenced. W1–W3 done. |
 | `docs/FUTURE-WORK.md` | **What is left, and why.** What the research still needs, what was deliberately left as an interface, and the limits of what was built. |
+| `benchmark/` | **The seeded-fault benchmark.** 27 cases, four ablation rows, a committed run in `RESULTS.md`. |
 | `.visor/` | Project storage (gitignored). |
 
 ## Setup
@@ -107,9 +108,14 @@ offers its fix instead of taking it, the graph is proved against a real
 against the graph on every compile, somebody else's `.tf` file opens as a
 canvas, and findings are drawn on the nodes that caused them.
 
+Measured: `python -m benchmark.run --ablate` injects one known fault into each
+of five clean graphs and scores detection, **attribution to the right node**,
+and whether anything was silently rewritten. Committed run in
+[benchmark/RESULTS.md](benchmark/RESULTS.md).
+
 Not built: cost estimation, the Memory Curator, real-state drift, and the
-evaluation protocol — **the last of which is the only one that blocks the
-result.** Each is written up in
+half of the evaluation that needs people — **the last of which is the only one
+that blocks the result.** Each is written up in
 [docs/RESEARCH-GAPS.md](docs/RESEARCH-GAPS.md); what remains, why, and in what
 order is [docs/FUTURE-WORK.md](docs/FUTURE-WORK.md). The workstream plan that
 got the rest done is [docs/PLAN.md](docs/PLAN.md).

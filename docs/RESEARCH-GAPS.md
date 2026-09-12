@@ -63,8 +63,10 @@ Not built at all: cost estimation, the Memory Curator, real-state drift, and an
 evaluation protocol.
 
 **Closed so far:** G1, G5 (2026-09-06); G2, G3, G4, G6, G8 (2026-09-07). G4's
-cost half stays open on purpose — see below. **G7 (evaluation) is the only
-gap left that blocks the result.**
+cost half stays open on purpose — see below. **G7 (evaluation) is the only gap
+left that blocks the result, and its automatic half now exists** —
+`benchmark/`, 27 seeded-fault cases with an ablation table. What remains of it
+needs people.
 
 ---
 
@@ -547,7 +549,46 @@ result — the two writers were racing inside the session, not merely at save
 time. Agent turns now run in their own session. Nothing would have surfaced
 this except building the detection and reading its output.
 
-### G7 — No evaluation protocol
+### G7 — No evaluation protocol — PART 1 BUILT
+
+**The seeded-fault benchmark shipped 2026-09-07**: `benchmark/`, with a
+committed run in `benchmark/RESULTS.md`. Five graphs covering all ten
+registered resource types, eight fault classes, 27 cases, four ablation rows.
+Deterministic and free by default — the Architect is stubbed, so the run
+measures the architecture rather than the model — with `--model` to fill the
+repair columns when someone wants to pay for them.
+
+| | Full configuration |
+|---|---|
+| Detection | 100% (27/27) |
+| **Attribution** | **100% (22/22 attributable)** |
+| Fix offered, no model call | 15% (4/27) |
+| Nodes silently rewritten | **0** |
+| Model rounds across all 27 cases | 13 |
+
+Attribution is the number that matters, and the only one nothing else in the
+literature reports. Detection at 100% is the *expected* result rather than a
+finding — every fault in the corpus is one the system has a validator for — and
+`benchmark/README.md` says so rather than letting the figure oversell itself.
+
+The ablation table is where the components earn their place. Removing the
+prover costs 14 of 27 cases; removing the DevOps validator costs exactly 5,
+**all of them `tag_override`**, because it is the only fault a plan can see and
+the IR cannot. That single row is the whole justification for W2.
+
+**It found two defects in the system on its first run**, neither reachable by
+reading the code: `region_not_allowed` was spending a model round in every run
+and never clearing it (a region is a project setting; no node edit changes
+one), and the presence rule was holding *schema* errors as intent — `bucket
+= ""` is not a bucket name somebody prefers, it is a graph that cannot compile.
+Both fixed; see `benchmark/RESULTS.md`.
+
+**Still open:** the text-only baseline (A3), ethics approval (A1) and the human
+study (A4). See `docs/FUTURE-WORK.md`.
+
+---
+
+**The original write-up:**
 
 The IaC-Eval harness has been removed, and nothing replaces it. This is the
 gap that decides whether the work is publishable, so it is worth being blunt:

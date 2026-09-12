@@ -61,7 +61,24 @@ critical path within it.
 Nothing else here has a lead time measured in weeks. Submit before the study
 design is final; the protocol can be amended, the waiting cannot be recovered.
 
-### A2. Seeded-fault benchmark — buildable today, no participants
+### A2. Seeded-fault benchmark — **BUILT, 2026-09-07**
+
+`benchmark/`, with a committed run in `benchmark/RESULTS.md`. Deterministic and
+free by default (the Architect is stubbed), `--model` for the repair columns,
+`--ablate` for the table. Headline: **detection 100% of 27 cases, attribution
+100% of the 22 that have a node, and nothing silently rewritten.** The
+`- devops` ablation removes exactly one fault class — which is the entire
+argument for W2 in one row.
+
+It found two real defects in the system on its first run, and one in its own
+scoring once a real model was put behind it. All three are recorded in
+`RESULTS.md`.
+
+**What is left here:** grow the corpus with faults nobody wrote a rule for.
+Detection at 100% against a system's own feature list is the expected result,
+not a finding; it only becomes informative when the corpus can surprise it.
+
+**The original plan:**
 
 Take a corpus of valid graphs, inject **one** known fault into each, and
 measure what the system does. Fault classes the system already has validators
@@ -346,8 +363,8 @@ agent) without changing its shape.
 
 | | | Why |
 |---|---|---|
-| 1 | **A1 — submit the ethics application** | The only thing whose clock you cannot speed up. |
-| 2 | **A2 — the seeded-fault benchmark** | Needs no participants, gives a number this week, improves as anything changes. |
+| 1 | **A1 — submit the ethics application** | The only thing whose clock you cannot speed up. Still not done. |
+| 2 | ~~A2 — the seeded-fault benchmark~~ | **Done 2026-09-07.** Re-run it as things change; the trend is a result. |
 | 3 | **A3 — the text-only baseline** | A day's work, and every comparative claim depends on it. |
 | 4 | **C1's measurement — import three public Terraform repos and report `unmapped`** | An afternoon, and it converts the largest limitation into a stated, quantified boundary. |
 

@@ -32,13 +32,29 @@ PRIORITY = {
 }
 
 # Failures no model round can clear, because the fix is outside the graph:
-# the registry, the policy set or the price book has to change first.
+# the registry, the policy set, the project settings or the price book has to
+# change first.
 #
 # round_trip_equivalence is the sharpest case. The graph is not what is wrong -
 # something the compiler emitted cannot be read back - so handing it to the
 # Architect would have it edit a correct graph to work around a compiler
 # defect, which is worse than reporting the defect.
-NEEDS_HUMAN = {"registry_coverage", "round_trip_equivalence"}
+#
+# region_not_allowed was added after the seeded-fault benchmark showed the loop
+# spending a model round on it in every run and never clearing it: the region
+# is a project setting, and no edit to any node can change one.
+NEEDS_HUMAN = {"registry_coverage", "round_trip_equivalence", "region_not_allowed"}
+
+# Counterexample types where "but I asked for that" is a coherent position.
+#
+# A policy violation is a disagreement about a rule: the value is valid
+# Terraform, something forbids it, and a person may legitimately want it
+# anyway. A schema error is not a disagreement - `bucket = ""` is not a bucket
+# name somebody prefers, it is a graph that cannot compile, and there is no
+# version of honouring that intent. Holding it as one produced exactly that in
+# the benchmark: a non-compiling graph, no repair attempted, and no fix
+# offered, because there was nothing to offer.
+ARGUABLE = {"policy_violation", "cost_violation"}
 
 
 class ErrorToEdit:
@@ -58,11 +74,16 @@ class ErrorToEdit:
 
         `intended` is every attribute somebody has actually asserted - drawn on
         the canvas, or written by the Architect acting on this request (see
-        intent.py). A failure landing on one of those is escalated rather than
-        repaired: the edit that would clear it is the edit that reverses a
-        decision, and MACOG's admissible-edit set A(CE) has no member that both
-        satisfies the validator and honours the intent. Every escalated
-        counterexample is stamped with which of the two reasons it was.
+        intent.py). A *policy* failure landing on one of those is escalated
+        rather than repaired: the edit that would clear it is the edit that
+        reverses a decision, and MACOG's admissible-edit set A(CE) has no
+        member that both satisfies the validator and honours the intent.
+
+        That protection applies only to the types in ARGUABLE. A schema error
+        on an attribute somebody set is still repaired, because a graph that
+        will not compile is not a preference to be respected.
+
+        Every escalated counterexample is stamped with which reason it was.
         """
         intended = intended or {}
         repairable, escalate = [], []
@@ -71,7 +92,7 @@ class ErrorToEdit:
                 continue
             if ce.get("rule") in NEEDS_HUMAN:
                 escalate.append({**ce, "escalation": "needs_human"})
-            elif contradicts(ce, intended):
+            elif ce.get("type") in ARGUABLE and contradicts(ce, intended):
                 escalate.append({**ce, "escalation": "contradicts_intent"})
             else:
                 repairable.append(ce)

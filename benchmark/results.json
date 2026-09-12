@@ -1,0 +1,2672 @@
+{
+  "model": null,
+  "baselines": [
+    {
+      "graph": "three_tier",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": false
+    },
+    {
+      "graph": "three_tier",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": true
+    },
+    {
+      "graph": "static_site",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": false
+    },
+    {
+      "graph": "static_site",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": true
+    },
+    {
+      "graph": "serverless_api",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": false
+    },
+    {
+      "graph": "serverless_api",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": true
+    },
+    {
+      "graph": "queue_worker",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": false
+    },
+    {
+      "graph": "queue_worker",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": true
+    },
+    {
+      "graph": "data_store",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": false
+    },
+    {
+      "graph": "data_store",
+      "config": "full",
+      "clean": true,
+      "findings": [],
+      "score": 0.0,
+      "deploy": true
+    }
+  ],
+  "results": [
+    {
+      "fault": "public_acl",
+      "graph": "static_site",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "data_store",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "three_tier",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "data_store",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "three_tier",
+      "config": "full",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-vpc"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "static_site",
+      "config": "full",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "serverless_api",
+      "config": "full",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "handler"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "queue_worker",
+      "config": "full",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "data_store",
+      "config": "full",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "three_tier",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-subnet",
+        "app-vpc"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "static_site",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets",
+        "site-cdn"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "serverless_api",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "api",
+        "handler"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "queue_worker",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs",
+        "worker"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "three_tier",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "static_site",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "serverless_api",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "queue_worker",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "data_store",
+      "config": "full",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "three_tier",
+      "config": "full",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "static_site",
+      "config": "full",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "serverless_api",
+      "config": "full",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "queue_worker",
+      "config": "full",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "data_store",
+      "config": "full",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "static_site",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "data_store",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "three_tier",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "data_store",
+      "config": "full",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "static_site",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "data_store",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "three_tier",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "data_store",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "three_tier",
+      "config": "- prover",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-vpc"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "static_site",
+      "config": "- prover",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "serverless_api",
+      "config": "- prover",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "handler"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "queue_worker",
+      "config": "- prover",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "data_store",
+      "config": "- prover",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "three_tier",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-subnet",
+        "app-vpc"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "static_site",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets",
+        "site-cdn"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "serverless_api",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "api",
+        "handler"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "queue_worker",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs",
+        "worker"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "three_tier",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "static_site",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "serverless_api",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "queue_worker",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "data_store",
+      "config": "- prover",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "three_tier",
+      "config": "- prover",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "static_site",
+      "config": "- prover",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "serverless_api",
+      "config": "- prover",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "queue_worker",
+      "config": "- prover",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "data_store",
+      "config": "- prover",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "static_site",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "data_store",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "three_tier",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "data_store",
+      "config": "- prover",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "static_site",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "data_store",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "three_tier",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "data_store",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "three_tier",
+      "config": "- devops",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-vpc"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "static_site",
+      "config": "- devops",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "serverless_api",
+      "config": "- devops",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "handler"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "queue_worker",
+      "config": "- devops",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "data_store",
+      "config": "- devops",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 0.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "three_tier",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-subnet",
+        "app-vpc"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "static_site",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets",
+        "site-cdn"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "serverless_api",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "api",
+        "handler"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "queue_worker",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs",
+        "worker"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "three_tier",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "static_site",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "serverless_api",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "queue_worker",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "data_store",
+      "config": "- devops",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "three_tier",
+      "config": "- devops",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "static_site",
+      "config": "- devops",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "serverless_api",
+      "config": "- devops",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "queue_worker",
+      "config": "- devops",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "data_store",
+      "config": "- devops",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "static_site",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "data_store",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "three_tier",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "data_store",
+      "config": "- devops",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "static_site",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "data_store",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "three_tier",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "data_store",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": true,
+      "repaired": false,
+      "remediated": true,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "three_tier",
+      "config": "- harmonizer",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-vpc"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "static_site",
+      "config": "- harmonizer",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "serverless_api",
+      "config": "- harmonizer",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "handler"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "queue_worker",
+      "config": "- harmonizer",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "data_store",
+      "config": "- harmonizer",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "three_tier",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-subnet",
+        "app-vpc"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "static_site",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets",
+        "site-cdn"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "serverless_api",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "api",
+        "handler"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "queue_worker",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs",
+        "worker"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "three_tier",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "static_site",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "serverless_api",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "queue_worker",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "data_store",
+      "config": "- harmonizer",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "three_tier",
+      "config": "- harmonizer",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "static_site",
+      "config": "- harmonizer",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "serverless_api",
+      "config": "- harmonizer",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "queue_worker",
+      "config": "- harmonizer",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "data_store",
+      "config": "- harmonizer",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": false,
+      "attributed": false,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "static_site",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "data_store",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 1,
+      "score": 8.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "three_tier",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "data_store",
+      "config": "- harmonizer",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 1,
+      "score": 4.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "static_site",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "public_acl",
+      "graph": "data_store",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "three_tier",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unencrypted_db",
+      "graph": "data_store",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "three_tier",
+      "config": "- repair",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-vpc"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "static_site",
+      "config": "- repair",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "serverless_api",
+      "config": "- repair",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "handler"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "queue_worker",
+      "config": "- repair",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "tag_override",
+      "graph": "data_store",
+      "config": "- repair",
+      "validator": "policy (plan-grounded)",
+      "needs_plan": true,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "three_tier",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "app-subnet",
+        "app-vpc"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "static_site",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets",
+        "site-cdn"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "serverless_api",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "api",
+        "handler"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "dependency_cycle",
+      "graph": "queue_worker",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "jobs",
+        "worker"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "three_tier",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "static_site",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "serverless_api",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "queue_worker",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "residency_breach",
+      "graph": "data_store",
+      "config": "- repair",
+      "validator": "policy",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": null,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [],
+      "model_rounds": 0,
+      "score": 3.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "three_tier",
+      "config": "- repair",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "static_site",
+      "config": "- repair",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "serverless_api",
+      "config": "- repair",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "queue_worker",
+      "config": "- repair",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "unknown_resource",
+      "graph": "data_store",
+      "config": "- repair",
+      "validator": "harmonizer",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [
+        "resource_registry_match"
+      ],
+      "nodes_touched": [],
+      "faulted": [
+        "rogue-cluster"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "static_site",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "site-assets"
+      ],
+      "model_rounds": 0,
+      "score": 8.0
+    },
+    {
+      "fault": "missing_required",
+      "graph": "data_store",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "archive"
+      ],
+      "model_rounds": 0,
+      "score": 8.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "three_tier",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "orders-db"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    },
+    {
+      "fault": "invalid_value",
+      "graph": "data_store",
+      "config": "- repair",
+      "validator": "schema",
+      "needs_plan": false,
+      "detected": true,
+      "attributed": true,
+      "offered": false,
+      "repaired": false,
+      "remediated": false,
+      "collateral": [],
+      "nodes_touched": [],
+      "faulted": [
+        "ledger"
+      ],
+      "model_rounds": 0,
+      "score": 4.0
+    }
+  ]
+}
