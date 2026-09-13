@@ -48,6 +48,7 @@ a hallucinated provider field cannot be emitted at all.
 | `docs/PLAN.md` | **How the rest got finished.** Four workstreams, sequenced. W1–W3 done. |
 | `docs/FUTURE-WORK.md` | **What is left, and why.** What the research still needs, what was deliberately left as an interface, and the limits of what was built. |
 | `benchmark/` | **The seeded-fault benchmark.** 27 cases, four ablation rows, a committed run in `RESULTS.md`. |
+| `docs/MANUAL-TEST.md` | **How to try it by hand.** Four levels, cheapest first; the first two need no model. |
 | `.visor/` | Project storage (gitignored). |
 
 ## Setup
