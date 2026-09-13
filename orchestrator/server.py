@@ -14,11 +14,16 @@ sessions act as a compute cache, keyed by project id and rehydrated from the
 stored graph before every operation.
 """
 
+import json
+import logging
 import os
-from typing import Any, Dict, List, Optional
+import queue
+import threading
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import llm
@@ -27,6 +32,13 @@ from .intent import apply_patch
 from .mcp_client import MCPClient
 from .projects import ProjectError, store
 from .state_machine import Orchestrator
+
+log = logging.getLogger(__name__)
+
+# How long a streamed turn may stay silent before a keepalive comment is sent.
+# Comfortably under the 30s an idle connection is usually cut at, and well
+# under how long the Architect can take to answer.
+STREAM_HEARTBEAT_S = 10.0
 
 app = FastAPI(title="MACOG Orchestrator", version="2.0.0")
 
@@ -364,13 +376,20 @@ def project_save_graph(project_id: str, request: GraphSave):
     }
 
 
-@app.post("/projects/{project_id}/chat")
-def project_chat(project_id: str, request: ProjectChat):
-    """One turn of the state machine against this project, persisted on the way out."""
-    record = _load(project_id)
-    if _orchestrator is None:
-        raise HTTPException(status_code=503, detail="Orchestrator is not started.")
+def _run_chat_turn(
+    project_id: str,
+    request: ProjectChat,
+    record: Dict[str, Any],
+    on_event: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+) -> Dict[str, Any]:
+    """
+    One turn, and everything that has to happen around it.
 
+    Shared by POST /chat and POST /chat/stream so the two can never disagree
+    about what a turn does. The only difference between them is whether the
+    caller watches it happen; the work, the persistence and the payload are the
+    same, which is the point of factoring it out rather than writing it twice.
+    """
     def _stored_now() -> List[Dict[str, Any]]:
         """The graph as stored right now - a /graph save may have landed mid-turn."""
         latest = store.get(project_id)
@@ -389,6 +408,7 @@ def project_chat(project_id: str, request: ProjectChat):
         settings=record.get("settings"),
         approved=request.approved,
         reread=_stored_now,
+        on_event=on_event,
     )
 
     nodes, edges = nodes_to_canvas(
@@ -455,6 +475,84 @@ def project_chat(project_id: str, request: ProjectChat):
         "project": store.summarise(record) | {"settings": record.get("settings", {})},
         "chat": record.get("chat", []),
     }
+
+
+@app.post("/projects/{project_id}/chat")
+def project_chat(project_id: str, request: ProjectChat):
+    """One turn of the state machine against this project, persisted on the way out."""
+    record = _load(project_id)
+    if _orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator is not started.")
+    return _run_chat_turn(project_id, request, record)
+
+
+@app.post("/projects/{project_id}/chat/stream")
+def project_chat_stream(project_id: str, request: ProjectChat):
+    """
+    The same turn, watched as it happens.
+
+    A turn takes seconds, and most of that is one model call. Reporting only
+    the finished bundle leaves the human in front of a spinner with no idea
+    whether an agent is thinking, compiling, or already stopped to ask them
+    something - so the states and the blackboard writes are streamed as
+    server-sent events, and the identical payload `/chat` returns arrives last
+    as the `done` event.
+
+    The turn runs on a worker thread and this generator drains its queue. That
+    is deliberate: the orchestrator is synchronous and calls blocking things -
+    the model, opa, terraform - so running it inline would block the event loop
+    and nothing would be delivered until the end, which is the problem this
+    endpoint exists to solve.
+    """
+    record = _load(project_id)
+    if _orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator is not started.")
+
+    events: "queue.Queue[Optional[Tuple[str, Dict[str, Any]]]]" = queue.Queue()
+
+    def work() -> None:
+        try:
+            payload = _run_chat_turn(
+                project_id, request, record,
+                on_event=lambda kind, data: events.put((kind, data)),
+            )
+            events.put(("done", payload))
+        except Exception as error:  # noqa: BLE001 - reported to the client, not swallowed
+            log.exception("streamed chat turn failed")
+            events.put(("failed", {"message": str(error) or error.__class__.__name__}))
+        finally:
+            # Always: the generator below blocks on this queue, so a turn that
+            # raises before reaching either put would hang the response open.
+            events.put(None)
+
+    worker = threading.Thread(target=work, name=f"chat-{project_id}", daemon=True)
+    worker.start()
+
+    def stream():
+        while True:
+            try:
+                item = events.get(timeout=STREAM_HEARTBEAT_S)
+            except queue.Empty:
+                # A comment frame. Proxies and load balancers drop a connection
+                # that says nothing, and the Architect's model call can be
+                # quiet for a while.
+                yield ": keepalive\n\n"
+                continue
+            if item is None:
+                return
+            kind, data = item
+            yield f"event: {kind}\ndata: {json.dumps(data, default=str)}\n\n"
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            # Nginx buffers event streams into uselessness without this.
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/projects/{project_id}/proposal")

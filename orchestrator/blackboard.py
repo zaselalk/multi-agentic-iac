@@ -23,7 +23,7 @@ is persisted by projects.py.
 import hashlib
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 # Who may write to the blackboard. "human" is not in MACOG; it is the
 # addition this research makes.
@@ -49,7 +49,13 @@ def digest(payload: Any) -> str:
 
 
 class Blackboard:
-    def __init__(self, session_id: str, intent: str = "", author: str = "human"):
+    def __init__(
+        self,
+        session_id: str,
+        intent: str = "",
+        author: str = "human",
+        listener: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ):
         self.session_id = session_id
         self.intent = intent
         self.origin = author
@@ -57,6 +63,25 @@ class Blackboard:
         self.entries: List[Dict[str, Any]] = []
         self.state_log: List[str] = []
         self.breakpoints: List[Dict[str, Any]] = []
+        # Called as writes happen, so a caller can watch the turn instead of
+        # waiting for it. The bundle at the end is unchanged either way: this
+        # reports the same record as it is being made, and never alters it.
+        self.listener = listener
+
+    def _emit(self, event: str, data: Dict[str, Any]) -> None:
+        """
+        Tell the listener, and never let it break the turn.
+
+        A subscriber that raises - a closed connection, a full queue - must not
+        take down the run producing the work. The blackboard is the record of
+        the turn; delivering it is strictly secondary to making it.
+        """
+        if self.listener is None:
+            return
+        try:
+            self.listener(event, data)
+        except Exception:
+            pass
 
     # -----------------------------------------------------
     # WRITING
@@ -80,10 +105,18 @@ class Blackboard:
             **meta,
         }
         self.entries.append(entry)
+        # Payload is deliberately not sent: a live watcher gets the same
+        # metadata the evidence bundle carries, not a second copy of every
+        # artifact streamed over the wire.
+        self._emit("write", {k: v for k, v in entry.items() if k != "payload"})
         return entry
 
     def enter_state(self, state: str):
         self.state_log.append(state)
+        self._emit("state", {
+            "state": state,
+            "at": round(time.time() - self.started_at, 3),
+        })
 
     def breakpoint(self, reason: str, detail: Dict[str, Any]):
         """

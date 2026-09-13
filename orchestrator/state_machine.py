@@ -98,6 +98,7 @@ class Orchestrator:
         approved: bool = False,
         repair: bool = True,
         reread: Optional[Callable[[], List[Dict[str, Any]]]] = None,
+        on_event: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """
         One turn. `nodes` are canonical nodes (see adapters.canvas_to_nodes).
@@ -110,13 +111,21 @@ class Orchestrator:
         what a human asking "is what I have drawn compliant?" needs - a repair
         loop would answer for a graph they never approved.
 
+        `on_event(kind, data)` is called as the turn progresses - `state` when
+        the machine enters one, `write` for every blackboard entry. It is for
+        watching, not steering: nothing it does changes the outcome, and an
+        exception from it is swallowed rather than failing the turn.
+
         `reread` returns the stored graph as it is *now*. A model turn takes
         seconds and the human is not idle for them, so the world may have moved
         underneath: without this the agent's result is written over whatever
         they saved meanwhile, and nobody is told it existed.
         """
         settings = settings or {}
-        board = Blackboard(session_id, intent)
+        # `on_event` turns the turn into something watchable: the same states
+        # and writes the bundle records, reported as they happen. It observes
+        # only - a turn behaves identically with or without a subscriber.
+        board = Blackboard(session_id, intent, listener=on_event)
         run_deploy = DEPLOY_VALIDATION if deploy_validation is None else deploy_validation
 
         # --- load: the human's canvas is authoritative at turn start --------
