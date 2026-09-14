@@ -18,9 +18,9 @@ What that buys is the thing the IR cannot have. The IR says
 `tags = merge(local.default_tags, ...)` because that is what the HCL says; the
 plan says `tags_all = {"Owner": "visor", ...}` because that is what will exist.
 Post-expansion values, resolved defaults, and `after_unknown` marking what is
-only knowable at apply. So the plan is produced as a blackboard artifact rather
-than as one validator's private output, and both the DevOps validator and the
-Security Prover read it.
+only knowable at apply. So the plan is produced once by the controller rather
+than as one validator's private output, and passed to both the DevOps
+validator and the Security Prover.
 """
 
 import glob

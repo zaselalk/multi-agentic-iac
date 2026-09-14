@@ -30,7 +30,7 @@ human who is present for the whole design session rather than only at the end.
 | Core representation | Typed I-IR, agent-facing | One schema shared by human, agent and compiler |
 | Synthesis | LLM + grammar-constrained decoding | Deterministic compiler from the graph |
 | Feedback | Log files and JSON traces | Counterexamples addressed to canvas nodes |
-| Protocol | Internal shared blackboard | Blackboard **+ MCP**, with `human` as an author |
+| Protocol | Internal shared blackboard | **MCP.** The blackboard is replaced, not extended — see below |
 | HITL | Named as future work | Agentic breakpoints as ordinary control flow |
 
 The synthesis row is the one that matters most. MACOG needs constrained
@@ -38,11 +38,22 @@ decoding because its Engineer generates HCL text; here the graph is lowered to
 HCL by a deterministic compiler, so there is no decoding step to constrain and
 a hallucinated provider field cannot be emitted at all.
 
+The protocol row is the one most easily misread. MACOG's blackboard is how its
+agents *communicate*: an agent learns what another did by reading the store.
+Here no agent reads one. Coordination runs through the schema instance held by
+the MCP server — the controller pushes the canvas with `set_graph` and re-reads
+an agent's edits with `get_graph` — and agents are handed typed arguments and
+return typed results. What survives from MACOG is its evidence discipline, not
+its coordination substrate: `orchestrator/ledger.py` records order, authorship
+and timing, and emits the S4.9 bundle. It is written to on every turn and read
+by nothing. A schema instance says what *is*; the ledger says who decided it,
+and when.
+
 ## Repository
 
 | Path | What |
 |---|---|
-| `orchestrator/` | The agent runtime — state machine, blackboard, agents, validators. |
+| `orchestrator/` | The agent runtime — state machine, evidence ledger, agents, validators. |
 | `policies/` | Rego rules the Security Prover evaluates every turn. |
 | `docs/RESEARCH-GAPS.md` | **What is still missing, and why.** The register. |
 | `docs/PLAN.md` | **How the rest got finished.** Four workstreams, sequenced. W1–W3 done. |

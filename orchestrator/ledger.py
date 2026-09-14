@@ -1,23 +1,38 @@
 """
-The typed blackboard.
+The evidence ledger.
 
-MACOG (Khan et al. 2025, S4.7) has every agent read and write one shared,
-versioned artifact store rather than passing messages: I-IR versions, compiler
-outputs, validator traces, deploy logs and policy proofs, each stamped with
-content hashes so a run can be replayed and audited.
+This is where this system parts company with MACOG (Khan et al. 2025, S4.7).
 
-This is that store, for one turn. Two things differ from the paper, both
-because a human is in the loop here rather than only at the end:
+MACOG coordinates through a shared blackboard: every agent reads and writes
+one artifact store, and an agent learns what another agent did by looking it
+up there. The blackboard is the communication medium.
 
-- Entries carry an `author` that can be `human`, not just an agent name. A
-  canvas edit is a first-class blackboard write, which is what makes conflict
-  detection between a human change and an agent-known policy expressible at
-  all.
+Here it is not. Coordination happens through the schema instance held by the
+MCP server - `set_graph` puts the canvas there, `get_graph` reads back what an
+agent changed, and the controller re-reads it from MCP rather than from this
+file precisely because MCP holds the one canonical, schema-validated graph
+while this holds undifferentiated history. Agents receive typed arguments and
+return typed results; none of them is given a ledger, and none of them reads
+one.
+
+So this class is append-only by design, not by accident: it is written to and
+never consulted. What it records is what the schema instance cannot carry -
+order, authorship and timing:
+
+- `author` can be `human`, not just an agent name. A canvas edit is a
+  first-class ledger entry, which is what makes a conflict between a human
+  change and an agent-known policy expressible at all.
 - `bundle()` emits the proof-carrying evidence bundle (S4.9) for the turn,
   which is the thing the canvas renders as its audit trail.
+- `listener` reports entries as they are made, so a turn can be watched while
+  it runs rather than only read afterwards.
 
-It is deliberately in-memory and per-turn. Anything that must outlive the turn
-is persisted by projects.py.
+A schema instance says what *is*. This says who decided it, and when. Keeping
+MACOG's evidence discipline while replacing its coordination substrate is the
+point, so the S4.9 bundle format is deliberately unchanged.
+
+It is in-memory and per-turn. Anything that must outlive the turn is persisted
+by projects.py.
 """
 
 import hashlib
@@ -25,7 +40,7 @@ import json
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-# Who may write to the blackboard. "human" is not in MACOG; it is the
+# Who may write to the ledger. "human" is not in MACOG; it is the
 # addition this research makes.
 AUTHORS = {
     "human",
@@ -48,7 +63,7 @@ def digest(payload: Any) -> str:
     ).hexdigest()[:16]
 
 
-class Blackboard:
+class EvidenceLedger:
     def __init__(
         self,
         session_id: str,
@@ -73,8 +88,8 @@ class Blackboard:
         Tell the listener, and never let it break the turn.
 
         A subscriber that raises - a closed connection, a full queue - must not
-        take down the run producing the work. The blackboard is the record of
-        the turn; delivering it is strictly secondary to making it.
+        take down the run producing the work. The ledger is the record of the
+        turn; delivering it is strictly secondary to making it.
         """
         if self.listener is None:
             return
@@ -94,7 +109,7 @@ class Blackboard:
         policy_trace, cost_sheet, deploy_log, counterexample, edit, motif.
         """
         if author not in AUTHORS:
-            raise ValueError(f"unknown blackboard author {author!r}")
+            raise ValueError(f"unknown ledger author {author!r}")
         entry = {
             "seq": len(self.entries),
             "kind": kind,
@@ -124,7 +139,7 @@ class Blackboard:
 
         MACOG names targeted human-in-the-loop checkpoints as future work; in
         this system they are a normal control-flow outcome, so they are
-        recorded on the blackboard like any other artifact.
+        recorded on the ledger like any other artifact.
         """
         record = {"reason": reason, "detail": detail, "at": round(time.time() - self.started_at, 3)}
         self.breakpoints.append(record)
@@ -132,20 +147,22 @@ class Blackboard:
         return record
 
     # -----------------------------------------------------
-    # READING
+    # READING - private, and there is exactly one reader
     # -----------------------------------------------------
-    def latest(self, kind: str) -> Optional[Any]:
+    # Nothing outside this class reads the ledger. That is the architectural
+    # claim, so it is enforced here rather than left to habit: the only lookup
+    # is private and the only caller is bundle(). An agent that needs an
+    # artifact is handed it, or reads the graph from MCP.
+    #
+    # Public `all_of()` and `counterexamples()` used to live here. Both were
+    # dead - the remains of a read channel from when this was a blackboard -
+    # and are removed rather than kept against a future that would contradict
+    # the design.
+    def _latest(self, kind: str) -> Optional[Any]:
         for entry in reversed(self.entries):
             if entry["kind"] == kind:
                 return entry["payload"]
         return None
-
-    def all_of(self, kind: str) -> List[Any]:
-        return [e["payload"] for e in self.entries if e["kind"] == kind]
-
-    def counterexamples(self) -> List[Dict[str, Any]]:
-        """Every unresolved counterexample from the most recent validation pass."""
-        return self.latest("counterexample") or []
 
     # -----------------------------------------------------
     # EVIDENCE BUNDLE
@@ -169,7 +186,7 @@ class Blackboard:
                 for entry in self.entries
             ],
             "validators": {
-                name: (self.latest(f"{name}_result") or {}).get("status", "not_run")
+                name: (self._latest(f"{name}_result") or {}).get("status", "not_run")
                 for name in ("schema", "policy", "cost", "deploy")
             },
         }

@@ -35,7 +35,7 @@ Two things are deliberately *not* conflicts:
 
 from typing import Any, Dict, List, Optional
 
-from .blackboard import digest
+from .ledger import digest
 
 
 def _semantic(node: Dict[str, Any]) -> Dict[str, Any]:

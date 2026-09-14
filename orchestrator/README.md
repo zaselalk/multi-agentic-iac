@@ -2,7 +2,7 @@
 
 The agent runtime. One chat turn is one pass of the state machine in
 `state_machine.py` — MACOG's orchestration loop, with the human's canvas as a
-first-class writer to the blackboard.
+first-class author on the evidence ledger.
 
 ```
 visual-devops-builder  ──HTTP──>  orchestrator  ──MCP/stdio──>  mcp-server
@@ -18,7 +18,7 @@ visual-devops-builder  ──HTTP──>  orchestrator  ──MCP/stdio──>  
 |---|---|
 | `server.py` | FastAPI front door. |
 | `state_machine.py` | The orchestrator: MACOG Eq. 14 states + Algorithm 1's repair loop. |
-| `blackboard.py` | Typed, versioned artifact store; emits the evidence bundle. |
+| `ledger.py` | Append-only record of a turn — author, artifact class, hash, timing. Emits the S4.9 evidence bundle. Written to, never read: agents coordinate through the MCP-held graph, not through this. |
 | `llm.py` | Azure AI Foundry client. The only place a model is configured. |
 | `mcp_client.py` | JSON-RPC 2.0 MCP client over stdio; one long-lived server process. |
 | `adapters.py` | React Flow `{id, type, position, data.details}` <-> canonical `{node_id, resource, desired_state, depends_on, view}`. |
@@ -41,9 +41,9 @@ load ─> plan ─> harmonize ─> compile ─> review ─> prove ─> price ─
   └── the human's canvas is written first                          J = 0 ─> done
 ```
 
-- **load** — the canvas is authoritative at turn start. It is written to the
-  blackboard as author `human`, so a hand edit made between turns is never
-  lost and is attributable in the trail.
+- **load** — the canvas is authoritative at turn start. It is pushed to MCP
+  and recorded on the ledger as author `human`, so a hand edit made between
+  turns is never lost and is attributable in the trail.
 - **plan** — the Architect edits the graph through MCP tools. It is the only
   agent that calls a model, and it never writes HCL.
 - **breakpoint** — a destructive edit (`delete_node`) stops the run and waits

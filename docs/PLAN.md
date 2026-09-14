@@ -77,7 +77,7 @@ something, the system did the opposite, and never said so.
 as a diff instead of applying it.**
 
 1. **Mark intent.** The Architect knows which attributes it set from the user's
-   request. Tag those on the blackboard as `intended`.
+   request. Tag those on the ledger as `intended`.
 2. **Route on intent.** In `agents/repair.py`, a counterexample landing on an
    intended attribute goes to a breakpoint, not a repair — *"you asked for X,
    policy Y forbids it. Override, change the policy, or let me fix it?"* A

@@ -18,7 +18,7 @@ what the system does.
 | DevOps                | validators/deploy.py          | deterministic |
 | Memory Curator        | agents/curator.py             | NOT BUILT     |
 | Orchestrator          | state_machine.py              | deterministic |
-| Blackboard            | blackboard.py                 | deterministic |
+| Blackboard            | ledger.py (see below)         | deterministic |
 | -                     | agents/repair.py (Error->Edit)| deterministic |
 
 Only the Architect calls a model. MACOG's Engineer needs grammar-constrained
@@ -27,10 +27,18 @@ graph deterministically, so there is no decoding step to constrain and no
 opportunity for the model to hallucinate a field. That is why the Engineer row
 is a compiler and not a prompt.
 
+MACOG's Blackboard row is the one that is not a like-for-like mapping. There,
+the blackboard is how agents communicate: an agent learns what another did by
+reading it. Here no agent reads it - coordination runs through the
+schema instance held by the MCP server, and agents are handed typed arguments.
+What `ledger.py` keeps is the evidence discipline: order, authorship, timing
+and the S4.9 bundle. It is written to and never consulted. See its module
+docstring.
+
 The role MACOG does not have is the human. The canvas writes to the same
-blackboard the agents do (author `human`), which is what makes a conflict
-between a human edit and an agent-known policy something the system can
-represent rather than something it discovers only at apply time.
+ledger the agents do (author `human`), which is what makes a conflict between
+a human edit and an agent-known policy something the system can represent
+rather than something it discovers only at apply time.
 """
 
 from .architect import Architect

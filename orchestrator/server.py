@@ -494,7 +494,7 @@ def project_chat_stream(project_id: str, request: ProjectChat):
     A turn takes seconds, and most of that is one model call. Reporting only
     the finished bundle leaves the human in front of a spinner with no idea
     whether an agent is thinking, compiling, or already stopped to ask them
-    something - so the states and the blackboard writes are streamed as
+    something - so the states and the ledger writes are streamed as
     server-sent events, and the identical payload `/chat` returns arrives last
     as the `done` event.
 

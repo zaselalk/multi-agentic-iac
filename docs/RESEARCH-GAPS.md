@@ -54,7 +54,7 @@ Verified working, end to end:
   much real Terraform the registry covers (G2).
 - The DevOps validator, grounded against the provider: `init -backend=false`,
   `validate`, `plan -out` and `show -json`, all offline, in ~8 s. The plan is a
-  blackboard artifact the Security Prover reads too, so a policy can be written
+  controller-owned artifact the Security Prover receives too, so a policy can be written
   against values only the provider knows (G4).
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.

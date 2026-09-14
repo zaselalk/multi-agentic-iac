@@ -1,5 +1,5 @@
 """
-The orchestrator: a deterministic controller over the blackboard.
+The orchestrator: a deterministic controller over the MCP-held graph.
 
 MACOG (S4.7, Eq. 14) advances a finite-state machine
 
@@ -9,9 +9,9 @@ with transitions guarded by contract predicates, and runs the
 counterexample-guided repair loop of Algorithm 1. This is that machine, with
 two states the paper does not have:
 
-    load        the human's canvas is written to the blackboard first, so the
-                turn starts from what the human actually drew rather than from
-                the agent's memory of it.
+    load        the human's canvas is pushed to MCP first, so the turn starts
+                from what the human actually drew rather than from the agent's
+                memory of it.
 
     breakpoint  a high-consequence edit stops the run and waits. MACOG lists
                 targeted human-in-the-loop checkpoints as future work; here
@@ -33,7 +33,7 @@ from .agents.architect import Architect
 from .agents.curator import MemoryCurator
 from .agents.harmonizer import ProviderHarmonizer
 from .agents.repair import ErrorToEdit
-from .blackboard import Blackboard
+from .ledger import EvidenceLedger
 from .conflict import (
     detect as detect_conflicts,
     diverged,
@@ -112,7 +112,7 @@ class Orchestrator:
         loop would answer for a graph they never approved.
 
         `on_event(kind, data)` is called as the turn progresses - `state` when
-        the machine enters one, `write` for every blackboard entry. It is for
+        the machine enters one, `write` for every ledger entry. It is for
         watching, not steering: nothing it does changes the outcome, and an
         exception from it is swallowed rather than failing the turn.
 
@@ -125,13 +125,13 @@ class Orchestrator:
         # `on_event` turns the turn into something watchable: the same states
         # and writes the bundle records, reported as they happen. It observes
         # only - a turn behaves identically with or without a subscriber.
-        board = Blackboard(session_id, intent, listener=on_event)
+        ledger = EvidenceLedger(session_id, intent, listener=on_event)
         run_deploy = DEPLOY_VALIDATION if deploy_validation is None else deploy_validation
 
         # --- load: the human's canvas is authoritative at turn start --------
-        board.enter_state("load")
+        ledger.enter_state("load")
         self.mcp.call_tool("set_graph", {"session_id": session_id, "nodes": nodes})
-        board.write("graph", "human", nodes, count=len(nodes))
+        ledger.write("graph", "human", nodes, count=len(nodes))
 
         # --- plan: intent -> graph edits ------------------------------------
         # What is already asserted on the canvas counts as asked for: the human
@@ -140,26 +140,26 @@ class Orchestrator:
 
         reply, trace, truncated = "", [], False
         if intent.strip():
-            board.enter_state("plan")
+            ledger.enter_state("plan")
             motifs = self.curator.retrieve(nodes, intent)
             if motifs:
-                board.write("motif", "curator", motifs)
+                ledger.write("motif", "curator", motifs)
 
             planned = self.architect.plan(intent, session_id, knowledge)
             reply, trace, truncated = planned["reply"], planned["trace"], planned["truncated"]
-            board.write("edit", "architect", trace, truncated=truncated)
+            ledger.write("edit", "architect", trace, truncated=truncated)
 
             # Plus the keys the Architect wrote acting on this request. A
             # validator objecting to any of these is objecting to something
             # somebody chose, not to something nobody thought about.
             intended = merge_intent(intended, intent_from_trace(trace))
-            board.write("intent", "architect", intended, nodes=len(intended))
+            ledger.write("intent", "architect", intended, nodes=len(intended))
 
             # --- breakpoint: high-consequence edits wait for a human --------
             destructive = [c for c in trace if c["tool"] in DESTRUCTIVE_TOOLS]
             if destructive and not approved:
-                board.enter_state("breakpoint")
-                board.breakpoint(
+                ledger.enter_state("breakpoint")
+                ledger.breakpoint(
                     "destructive_edit",
                     {
                         "tools": sorted({c["tool"] for c in destructive}),
@@ -170,13 +170,13 @@ class Orchestrator:
                 )
 
         # --- harmonize: is the graph expressible before we compile it? ------
-        board.enter_state("harmonize")
+        ledger.enter_state("harmonize")
         current = self.mcp.call_tool("get_graph", {"session_id": session_id}).get("nodes", [])
         harmonized = self.harmonizer.run(current, settings)
-        board.write("harmonization", "harmonizer", harmonized)
+        ledger.write("harmonization", "harmonizer", harmonized)
 
         # --- compile / review / prove / price / deploy ----------------------
-        compiled, results = self._validate(session_id, settings, board, run_deploy)
+        compiled, results = self._validate(session_id, settings, ledger, run_deploy)
         counterexamples = (
             harmonized["counterexamples"]
             + _round_trip_counterexamples(compiled)
@@ -205,13 +205,13 @@ class Orchestrator:
             if not repairable or attempts >= budget:
                 break
 
-            board.enter_state("repair")
+            ledger.enter_state("repair")
             attempts += 1
             patched = self.architect.repair(repairable, session_id)
             trace += patched["trace"]
-            board.write("edit", "architect", patched["trace"], repair_attempt=attempts)
+            ledger.write("edit", "architect", patched["trace"], repair_attempt=attempts)
 
-            compiled, results = self._validate(session_id, settings, board, run_deploy)
+            compiled, results = self._validate(session_id, settings, ledger, run_deploy)
             current = self.mcp.call_tool("get_graph", {"session_id": session_id}).get("nodes", [])
             harmonized = self.harmonizer.run(current, settings)
             counterexamples = (
@@ -231,7 +231,7 @@ class Orchestrator:
             # things worse, stop rather than let the loop thrash.
             new_score = self.router.score(results)
             if new_score >= score and new_score > 0:
-                board.write("counterexample", "orchestrator", counterexamples,
+                ledger.write("counterexample", "orchestrator", counterexamples,
                             note="repair did not reduce J; loop stopped")
                 break
             score = new_score
@@ -245,9 +245,9 @@ class Orchestrator:
         proposal = propose(current, held) if held else None
 
         if held:
-            board.write("counterexample", "orchestrator", held,
+            ledger.write("counterexample", "orchestrator", held,
                         note="contradicts the request; held for a human")
-            board.breakpoint("intent_conflict", {
+            ledger.breakpoint("intent_conflict", {
                 "nodes": sorted({c["node_id"] for c in held if c.get("node_id")}),
                 "counterexamples": held,
                 "patch": (proposal or {}).get("patch", []),
@@ -258,7 +258,7 @@ class Orchestrator:
                 ),
             })
         if blocked:
-            board.breakpoint("unrepairable", {
+            ledger.breakpoint("unrepairable", {
                 "nodes": sorted({c["node_id"] for c in blocked if c.get("node_id")}),
                 "counterexamples": blocked,
                 "message": "These need a change outside the graph - the registry, "
@@ -269,9 +269,9 @@ class Orchestrator:
         conflicts: List[Dict[str, Any]] = []
         resolution: Optional[List[Dict[str, Any]]] = None
         if reread is not None and intent.strip():
-            board.enter_state("reconcile")
+            ledger.enter_state("reconcile")
             latest = reread() or []
-            board.write("graph", "human", latest, count=len(latest), when="turn_end")
+            ledger.write("graph", "human", latest, count=len(latest), when="turn_end")
             conflicts = detect_conflicts(nodes, latest, current)
             if not conflicts and diverged(nodes, latest):
                 # The human changed something the agent never touched. Nobody
@@ -280,9 +280,9 @@ class Orchestrator:
                 # does not contain the change, so writing it would drop the
                 # edit. Merge it back without asking.
                 resolution = merge_graphs(nodes, latest, current)
-                board.write("edit", "orchestrator", resolution, resolution="auto_merge")
+                ledger.write("edit", "orchestrator", resolution, resolution="auto_merge")
             if conflicts:
-                board.write("conflict", "orchestrator", conflicts)
+                ledger.write("conflict", "orchestrator", conflicts)
                 # Where every conflict is disjoint, the two edits compose and
                 # the merge is what approval should apply - handing over the
                 # agent's graph instead would discard the human's mid-turn edit,
@@ -290,9 +290,9 @@ class Orchestrator:
                 # one step later.
                 if mergeable(conflicts):
                     resolution = merge_graphs(nodes, latest, current)
-                    board.write("edit", "orchestrator", resolution, resolution="merge")
+                    ledger.write("edit", "orchestrator", resolution, resolution="merge")
                 if not approved:
-                    board.breakpoint("concurrent_edit", {
+                    ledger.breakpoint("concurrent_edit", {
                         "nodes": [c["node_id"] for c in conflicts],
                         "conflicts": conflicts,
                         "resolution": "merge_available" if mergeable(conflicts) else "human_required",
@@ -310,18 +310,18 @@ class Orchestrator:
         if not approved:
             if conflicts:
                 withheld = "concurrent_edit"
-            elif any(b["reason"] == "destructive_edit" for b in board.breakpoints):
+            elif any(b["reason"] == "destructive_edit" for b in ledger.breakpoints):
                 withheld = "destructive_edit"
         reply = compose_reply(reply, cleared, held, withheld=withheld)
 
-        board.enter_state("done" if score == 0 else "unsatisfied")
+        ledger.enter_state("done" if score == 0 else "unsatisfied")
         if not repair and score > 0:
-            board.write("counterexample", "orchestrator", counterexamples,
+            ledger.write("counterexample", "orchestrator", counterexamples,
                         note="observation-only run; no repair was attempted")
-        board.write("counterexample", "orchestrator", counterexamples)
+        ledger.write("counterexample", "orchestrator", counterexamples)
 
-        if score == 0 and not board.breakpoints:
-            self.curator.store(current, compiled, board.bundle())
+        if score == 0 and not ledger.breakpoints:
+            self.curator.store(current, compiled, ledger.bundle())
 
         return {
             "reply": reply,
@@ -336,7 +336,7 @@ class Orchestrator:
             "counterexamples": counterexamples,
             # The first pass, before any repair. See above.
             "initial_counterexamples": initial,
-            "breakpoints": board.breakpoints,
+            "breakpoints": ledger.breakpoints,
             "conflicts": conflicts,
             # The human's graph with the agent's non-conflicting changes folded
             # in. Set whenever the human edited mid-turn and the two can be
@@ -353,18 +353,18 @@ class Orchestrator:
             "withheld": withheld,
             "repairs": attempts,
             "score": score,
-            "bundle": board.bundle(),
+            "bundle": ledger.bundle(),
         }
 
     # =====================================================
-    def _validate(self, session_id, settings, board: Blackboard, run_deploy: bool):
-        """compile -> deploy -> review -> prove -> price, recording each on the board."""
-        board.enter_state("compile")
+    def _validate(self, session_id, settings, ledger: EvidenceLedger, run_deploy: bool):
+        """compile -> deploy -> review -> prove -> price, recording each on the ledger."""
+        ledger.enter_state("compile")
         compiled = self.mcp.call_tool(
             "compile_terraform", {"session_id": session_id, "settings": settings}
         )
-        board.write("terraform_ir", "engineer", compiled.get("terraform_ir", {}))
-        board.write("hcl", "engineer", compiled.get("hcl", ""))
+        ledger.write("terraform_ir", "engineer", compiled.get("terraform_ir", {}))
+        ledger.write("hcl", "engineer", compiled.get("hcl", ""))
 
         # --- equiv(P, decompile(compile(P))) - MACOG Eq. 11 ----------------
         # The direction that did not exist. Cheap enough to run on every
@@ -373,7 +373,7 @@ class Orchestrator:
         compiled["round_trip"] = self.mcp.call_tool(
             "round_trip_check", {"session_id": session_id, "settings": settings}
         )
-        board.write("round_trip", "engineer", compiled["round_trip"])
+        ledger.write("round_trip", "engineer", compiled["round_trip"])
 
         # --- ground the graph against the provider, if asked ---------------
         # This runs before proving, which is not MACOG's order. The paper's
@@ -382,9 +382,9 @@ class Orchestrator:
         # provider default is exactly what the IR cannot carry. Proving after
         # grounding is the only order in which a plan-grounded policy exists.
         if run_deploy:
-            board.enter_state("deploy")
+            ledger.enter_state("deploy")
             compiled["plan"] = self._ground(session_id, settings, compiled)
-            board.write("deploy_log", "devops", _loggable(compiled["plan"]))
+            ledger.write("deploy_log", "devops", _loggable(compiled["plan"]))
 
         states = {"schema": "review", "policy": "prove", "cost": "price", "deploy": "deploy"}
         authors = {"schema": "reviewer", "policy": "prover", "cost": "planner", "deploy": "devops"}
@@ -401,9 +401,9 @@ class Orchestrator:
                 # Deploy's state was entered above, around the work itself;
                 # re-entering it here would log a state the machine was not in.
                 if name != "deploy":
-                    board.enter_state(states[name])
+                    ledger.enter_state(states[name])
                 results[name] = self.validators[name].run(compiled, settings=settings)
-            board.write(f"{name}_result", authors[name], results[name])
+            ledger.write(f"{name}_result", authors[name], results[name])
 
         return compiled, results
 
@@ -458,7 +458,7 @@ def _round_trip_counterexamples(compiled: Dict[str, Any]) -> List[Dict[str, Any]
 
 def _loggable(artifact: Dict[str, Any]) -> Dict[str, Any]:
     """The plan artifact minus the parts nobody audits - stdout and per-resource
-    values. The blackboard is the trail of what happened, not a second copy of
+    values. The ledger is the trail of what happened, not a second copy of
     the plan."""
     return {
         "status": artifact.get("status"),

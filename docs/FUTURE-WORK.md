@@ -300,7 +300,7 @@ opposite of what it was told.
 Conflict detection handles a human and an agent editing concurrently. Two
 *humans* on one project is not modelled: projects are files on disk with a
 process-level lock, and there is no presence, no per-user identity and no
-operational transform. The blackboard's `author` field would carry it, which
+operational transform. The ledger's `author` field would carry it, which
 is why the abstraction is right even though the feature is absent.
 
 ### C8. Tests

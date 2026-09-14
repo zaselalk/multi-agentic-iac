@@ -13,9 +13,11 @@ whose whole argument is that it does not change things behind your back should
 not be the thing that creates them.
 
 This validator interprets the plan artifact rather than producing it. The
-artifact is written to the blackboard during the deploy state and read by the
-Security Prover too, because post-expansion values are exactly what the IR
-cannot have.
+controller grounds the graph once during the deploy state and hands the same
+plan to every validator that follows, so the Security Prover sees it too -
+post-expansion values are exactly what the IR cannot have. The plan is
+recorded on the evidence ledger as it passes, but it travels by argument; no
+validator looks it up.
 """
 
 from typing import Any, Dict
