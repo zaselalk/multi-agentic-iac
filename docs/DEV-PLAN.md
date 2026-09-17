@@ -497,7 +497,7 @@ The phase that decides whether there is a result to defend.
 | **P2** | **A3 — text-only baseline CLI.** Same agents, same validators, no canvas. | 1 d | A comparative number exists. Unblocks every "compared to text-based workflows" sentence — which slide 10 commits to explicitly. |
 | **P3** | **Motif-seeded vs unseeded arm.** Same task list, run twice: empty motif store, then warm. | 0.5 d | The Memory Curator stops being *built but unevidenced*. See §5/M3 — the seeded-fault benchmark cannot measure it, because it runs `intent=""` and never enters `plan`. This is the cheapest place to fix that, and it rides on P2's harness. |
 | ~~**P4**~~ | ~~**Azure spike.**~~ **Done 2026-09-17.** | 1 d | ✅ Four `azurerm` types compile, import and round-trip. All four leaks fired and are fixed. Answer: **registry data plus a preamble entry** — resource layer needed no code, preamble needed 90 lines. 12 tests added; 40 pass. |
-| **P5** | **C1 coverage.** Import three public Terraform repos; report `unmapped` as a percentage. | 0.5 d | The largest stated limitation becomes a quantified boundary. |
+| **P5** | **C1 coverage.** Import three public Terraform repos; report `unmapped` as a percentage. | 0.5 d | The largest stated limitation becomes a quantified boundary. **More valuable now:** the AWS registry went from 10 to 23 types on 2026-09-17, so the number this produces is both better and, for the first time, worth reporting as a trend across two registry sizes. |
 
 **Watch item for P4 — confirmed and closed.** The address regex hardcoded
 `aws_`, so a non-AWS file found zero dependency edges and said nothing about

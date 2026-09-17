@@ -251,17 +251,32 @@ These work. The boundary has to be stated.
 
 ### C1. Registry breadth
 
-**Ten AWS types, plus four Azure types added 2026-09-17 to test the provider
-claim.** Everything the system does — the compiler, the decompiler, the
-importer, nesting, companions — is driven by `schema.json`, so breadth is data
-rather than code. The Azure spike confirmed that for the resource layer
-exactly: four registry entries compiled correctly with no code change at all.
-It also found the limit of the claim — the *preamble* was hardcoded to AWS and
-had to be made provider-keyed, so the honest form is "registry data plus a
-preamble entry". See `docs/DEV-PLAN.md` §2.
+**Twenty-three AWS types, plus four Azure types** (2026-09-17). Everything the
+system does — the compiler, the decompiler, the importer, nesting, companions —
+is driven by `schema.json`, so breadth is data rather than code. The Azure
+spike confirmed that for the resource layer exactly: four registry entries
+compiled correctly with no code change at all. It also found the limit of the
+claim — the *preamble* was hardcoded to AWS and had to be made provider-keyed,
+so the honest form is "registry data plus a preamble entry". See
+`docs/DEV-PLAN.md` §2.
 
-Fourteen types across two providers is still a demonstration, not coverage,
-and every claim about "real infrastructure" is bounded by it.
+The AWS set went from ten to twenty-three on the same day: security group,
+internet gateway, elastic IP, NAT gateway, route table, load balancer, IAM
+role, SNS topic, CloudWatch log group, KMS key, ECR repository, Secrets
+Manager secret, EFS. One node of every type compiles and passes a real
+`terraform plan` offline.
+
+Twenty-seven types across two providers is a better demonstration than ten, and
+still not coverage. **The measurement in the second half of this section is
+what turns it into a number, and it has not been run.**
+
+One limitation the expansion introduced, recorded rather than hidden: the
+security group's ingress and egress rules are **static**. Per-node rules need
+attributes that feed a block template without being emitted as arguments, *and*
+decompiler support to read them back — `static_blocks` are dropped on import
+and regenerated, so a customised value would be silently reverted on the next
+round trip, and `equiv(P₁, P*)` would stop holding without saying so.
+Closed-by-default is the safe shape to ship until both halves exist.
 
 The importer's `unmapped` list is now the honest measure: import a real
 project and its length is exactly how far the registry is from covering it.
