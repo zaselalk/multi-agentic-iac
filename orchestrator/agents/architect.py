@@ -194,6 +194,22 @@ class Architect:
 
         for _ in range(MAX_TOOL_ROUNDS):
             response = self.client.complete(messages=messages, model=self.model, tools=tools)
+
+            # A completion with no choices is rare and real: content filtering,
+            # a throttled deployment, or a generation that failed after the
+            # request was accepted all return 200 with an empty list. Indexing
+            # it raised IndexError out of the agent, through the state machine,
+            # and out of the API as a 500 - losing every edit already made this
+            # turn and telling the human nothing. The turn ends here instead,
+            # keeping the trace, because the graph edits in it are real.
+            if not getattr(response, "choices", None):
+                reply = (
+                    "The model returned nothing for this turn. Anything already "
+                    "changed is on the canvas and is listed below; nothing was "
+                    "rolled back. Try again, or say what to do next."
+                )
+                break
+
             choice = response.choices[0].message
             tool_calls = getattr(choice, "tool_calls", None)
 
