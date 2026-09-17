@@ -226,11 +226,80 @@ WITHHELD_COPY = {
 }
 
 
+def summarise_changes(before: List[Dict[str, Any]], after: List[Dict[str, Any]]) -> str:
+    """
+    What the turn actually changed, from the graph rather than from the agent.
+
+    The Architect writes its reply from what it *meant* to do. On a turn where
+    a human asked to take a KMS key out of a VPC, it reported "I removed the
+    dependency ... so it is no longer nested", having removed only the nesting:
+    `depends_on = [aws_vpc.vpc]` was still in the compiled Terraform, the edge
+    was still on the canvas, and the inspector still listed the dependency.
+    Everything derived from the schema agreed with everything else - the schema
+    was the single source of truth and stayed consistent. The *prose* was the
+    thing that drifted from it, and prose is what the human reads.
+
+    So this is computed by diffing the graph at turn start against the graph at
+    turn end. It cannot describe a change that did not happen, and it says
+    plainly when an edit touched only `view`, because a node that moved and
+    nothing else is a node whose Terraform is byte-identical.
+    """
+    was = {n.get("node_id"): n for n in before if n.get("node_id")}
+    now = {n.get("node_id"): n for n in after if n.get("node_id")}
+
+    added = sorted(set(now) - set(was))
+    removed = sorted(set(was) - set(now))
+    lines: List[str] = []
+
+    if added:
+        lines.append(f"added {_join(added)}")
+    if removed:
+        lines.append(f"removed {_join(removed)}")
+
+    view_only: List[str] = []
+    for node_id in sorted(set(was) & set(now)):
+        old, new = was[node_id], now[node_id]
+        old_deps = set(old.get("depends_on") or [])
+        new_deps = set(new.get("depends_on") or [])
+        gained, lost = sorted(new_deps - old_deps), sorted(old_deps - new_deps)
+        if gained:
+            lines.append(f"{node_id} now depends on {_join(gained)}")
+        if lost:
+            lines.append(f"{node_id} no longer depends on {_join(lost)}")
+
+        old_state = old.get("desired_state") or {}
+        new_state = new.get("desired_state") or {}
+        touched = sorted(
+            key for key in set(old_state) | set(new_state)
+            if old_state.get(key) != new_state.get(key)
+        )
+        if touched:
+            lines.append(f"{node_id}: {_join(touched)} changed")
+
+        # Nesting is `view`, and only becomes a dependency when the registry
+        # says the pair can have one - so it is reported separately and only
+        # when nothing binding moved with it.
+        if not gained and not lost and not touched:
+            if (old.get("view") or {}).get("parent_id") != (new.get("view") or {}).get("parent_id"):
+                view_only.append(node_id)
+
+    if view_only:
+        lines.append(
+            f"{_join(view_only)} moved on the canvas, which changes the layout "
+            "and not the Terraform"
+        )
+
+    if not lines:
+        return ""
+    return "Changed: " + "; ".join(lines) + "."
+
+
 def compose_reply(
     reply: str,
     repaired: List[Dict[str, Any]],
     held: List[Dict[str, Any]],
     withheld: str = "",
+    changes: str = "",
 ) -> str:
     """
     Append what the turn actually did to what the agent said it would do.
@@ -243,6 +312,12 @@ def compose_reply(
     the only point at which the outcome is known.
     """
     parts = [reply.strip()] if reply.strip() else []
+
+    # Before anything else the turn has to say, what it actually did - derived
+    # from the graph, so the agent's account of itself can be checked against
+    # it rather than taken on trust.
+    if changes:
+        parts.append(changes)
 
     if withheld:
         parts.append(WITHHELD_COPY.get(

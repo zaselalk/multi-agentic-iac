@@ -45,6 +45,7 @@ from .intent import (
     compose_reply,
     from_graph as intent_from_graph,
     from_trace as intent_from_trace,
+    summarise_changes,
     merge as merge_intent,
     propose,
 )
@@ -317,7 +318,15 @@ class Orchestrator:
                 withheld = "concurrent_edit"
             elif any(b["reason"] == "destructive_edit" for b in ledger.breakpoints):
                 withheld = "destructive_edit"
-        reply = compose_reply(reply, cleared, held, withheld=withheld)
+        # The graph the human started from, against the graph they end with.
+        # `nodes` is the canvas at turn start and `current` is what MCP holds
+        # now, so this is the net effect of everything - the Architect's edits,
+        # every repair round, and any auto-merge - rather than what any one of
+        # them intended.
+        reply = compose_reply(
+            reply, cleared, held, withheld=withheld,
+            changes=summarise_changes(nodes, current) if intent.strip() else "",
+        )
 
         ledger.enter_state("done" if score == 0 else "unsatisfied")
         if not repair and score > 0:
