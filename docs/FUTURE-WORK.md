@@ -184,19 +184,35 @@ walking `compiled["plan"]["resources"]`, and a `cost_violation` counterexample
 per node when the total exceeds `settings["budget"]`. Half a day once the
 catalogue exists.
 
-### B2. Memory Curator — `agents/curator.py`
+### B2. Memory Curator — `agents/curator.py` — **BUILT, 2026-09-17**
 
-**Why not built:** MACOG's own ablation makes it the mildest of the eight
-(74.02 → 72.17), so it was correctly last.
+**Why it was last:** MACOG's own ablation makes it the mildest of the eight
+(74.02 → 72.17).
 
-**Why it is more interesting here than in MACOG:** the motifs would be
-*visual*. A verified motif is a subgraph **plus its layout**, so reusing one
-restores the arrangement a person recognises, not just the resources. That is
-the "Verified Visual Motifs" line in the proposal, and there is no equivalent
-in a text-first system — which makes it a contribution rather than a port.
+**Why it is more interesting here than in MACOG:** the motifs are *visual*. A
+verified motif is a subgraph **plus its layout**, so reusing one restores the
+arrangement a person recognises, not just the resources. That is the "Verified
+Visual Motifs" line in the proposal, and there is no equivalent in a text-first
+system — which makes it a contribution rather than a port.
 
-`shape_key()` is implemented already, because the structural key had to be
-agreed before anything could be stored and it is testable without a store.
+**What was built.** `shape_key()` canonicalises kinds and edges in
+resource-kind space, so a graph matches regardless of what its nodes are
+named. `store()` writes a motif only on a turn that ends with no
+counterexamples, no breakpoints and no failing validator; it keeps the nodes
+(typed, with layout, identifiers stripped and `parent_id` rewritten to the
+parent's resource kind) and the compiled HCL as a **digest only** — never as
+text, per MACOG S4.10, because HCL ages with the provider and a graph does
+not. `retrieve()` scores on shape overlap and request wording and hands the
+top few to the Architect as typed fragments. Motifs persist under `.visor/`
+using the same write-then-replace as projects.py.
+
+**What is still open, and it is worth stating.** The seeded-fault benchmark
+runs with `intent=""` and so never enters the `plan` state, which is the only
+place `retrieve()` is called. A `- Memory Curator` ablation row would
+therefore measure nothing, and none has been added. The curator's effect is on
+*planning quality*, which needs the A3/A4 protocol — so this component is
+built but, unlike the other seven, **not yet evidenced**. Adding a
+motif-seeded vs unseeded arm to A3 is the cheapest way to fix that.
 
 ### B3. Proximity semantics — `spatial_semantics.proximity`
 

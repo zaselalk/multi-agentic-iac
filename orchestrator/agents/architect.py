@@ -82,6 +82,47 @@ one sentence saying what you changed.
 """
 
 
+def _motif_context(motifs: List[Dict[str, Any]]) -> str:
+    """
+    Verified motifs, as typed fragments.
+
+    Never HCL (MACOG S4.10): HCL ages with the provider, and a motif pasted as
+    text would reintroduce exactly the version drift the typed graph avoids.
+    Layout is included because a motif here is a subgraph *plus* its
+    arrangement - that is what makes it visual, and restoring the arrangement
+    is half of what makes it useful to a human.
+
+    Worded as precedent, not instruction. A motif is evidence that a shape
+    passed every validator before; it is not a request, and the one in front of
+    the model is the user's.
+    """
+    blocks = []
+    for motif in motifs:
+        lines = [
+            f'- verified {motif.get("times_verified", 0)}x, '
+            f'relevance {motif.get("score", 0)}'
+        ]
+        for node in motif.get("nodes") or []:
+            state = ", ".join(
+                f"{k}={v!r}" for k, v in sorted((node.get("desired_state") or {}).items())
+            )
+            parent = (node.get("view") or {}).get("parent")
+            lines.append(
+                f'    {node.get("resource")}'
+                + (f" [{state}]" if state else "")
+                + (f" nested in {parent}" if parent else "")
+            )
+        for edge in motif.get("edges") or []:
+            lines.append(f"    depends: {edge}")
+        blocks.append("\n".join(lines))
+    return (
+        "Previously verified structures from this workspace, for reference "
+        "only. Each passed every validator on an earlier turn. Follow one only "
+        "where it fits what is being asked for now; ignore them otherwise.\n"
+        + "\n".join(blocks)
+    )
+
+
 class Architect:
     name = "architect"
 
@@ -105,7 +146,8 @@ class Architect:
         ]
 
     # -----------------------------------------------------
-    def plan(self, intent: str, session_id: str, knowledge: str = "") -> Dict[str, Any]:
+    def plan(self, intent: str, session_id: str, knowledge: str = "",
+             motifs: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         """First pass: turn the user's intent into graph edits."""
         content = intent
         if knowledge.strip():
@@ -113,6 +155,8 @@ class Architect:
                 f"Retrieved Terraform provider context:\n{knowledge}\n\n"
                 f"User request: {intent}"
             )
+        if motifs:
+            content = f"{_motif_context(motifs)}\n\n{content}"
         return self._turn(
             SystemMessage(content=SYSTEM_PROMPT),
             UserMessage(content=f"Session: {session_id}\n\n{content}"),

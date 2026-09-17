@@ -367,9 +367,20 @@ edge multiset) so "VPC + 2 subnets + ALB" retrieves regardless of naming;
 turn that ends `done` with every validator passing; `retrieve()` injecting
 matches as typed fragments, never raw HCL; persisted alongside projects.
 
-**Recommendation: build this one.** It is the cheapest of the three, it is the
-only one whose absence undercuts a claim that is *distinctive to this
-research*, and it converts an unstated ablation into a real table row.
+**Built 2026-09-17.** Two things were learned doing it, both worth recording.
+
+*The wiring was a no-op, not just the implementation.* `retrieve()` was called
+and its result written to the ledger, but never passed to the Architect. Even
+a working curator would have changed nothing until `plan()` took a `motifs`
+argument. A component can be fully present in the trail and absent from the
+system.
+
+*It cannot be measured by the current benchmark.* The seeded-fault harness
+runs with `intent=""`, so it never enters the `plan` state — the only place
+`retrieve()` is called. A `- Memory Curator` row would measure nothing, so
+none was added. This component is **built but not evidenced**, which is a
+weaker position than the other seven and should be stated as such. The fix is
+an arm in A3: the same task list, motif-seeded versus unseeded.
 
 ---
 
@@ -377,7 +388,7 @@ research*, and it converts an unstated ablation into a real table row.
 
 | | Effort | Verdict |
 |---|---|---|
-| **M3** Memory Curator | 1 d | **Build.** Distinctive visual-motif claim currently empty |
+| ~~**M3** Memory Curator~~ | 1 d | ✅ **Built 2026-09-17.** Built but not yet *evidenced* — needs a seeded-vs-unseeded arm in A3 |
 | **M1** Proximity | 0.5 d | **Build** — it is half a day and completes a named objective — or reclassify in one sentence |
 | **M2** Cost | 1.5 d | **Reclassify.** An untraceable price book is worse than an honest absence |
 | **Zero-Drift wording** | — | State the weaker form: desired-vs-last-compiled |
@@ -428,7 +439,7 @@ Named on slide 9, so an examiner reads them as delivered. Lower priority than
 
 | # | Task | Effort | Done when |
 |---|---|---|---|
-| 2.4 | **M3 — Memory Curator.** `shape_key`, `store`, `retrieve`. | 1 d | A repeated shape is seeded, and `- Memory Curator` becomes a real ablation row rather than every run's silent default. |
+| ~~2.4~~ | ~~**M3 — Memory Curator.**~~ **Done 2026-09-17.** | 1 d | ✅ Retrieval and storage verified live. **No ablation row was added** — the benchmark runs `intent=""` and never enters `plan`, so a row would measure nothing. See revised note in §5/M3. |
 | 2.5 | **M1 — proximity.** Cluster by distance, report to the Architect as context, flip `status` in the schema. | 0.5 d | A proximity suggestion reaches the human through the normal approval flow. Non-binding, so the benchmark cannot move. |
 | 2.6 | **M2 — cost.** Reclassify rather than build; one paragraph. | 0.25 d | The slide's cost clause has a stated reason, not a silence. |
 

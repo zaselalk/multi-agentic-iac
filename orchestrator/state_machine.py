@@ -141,11 +141,16 @@ class Orchestrator:
         reply, trace, truncated = "", [], False
         if intent.strip():
             ledger.enter_state("plan")
+            # Retrieved before the Architect runs, and handed to it: a motif
+            # that is logged but never reaches the model is the ablation, not
+            # the feature. Suggestion only - every edit it leads to still goes
+            # through harmonize, the validators and the breakpoint flow.
             motifs = self.curator.retrieve(nodes, intent)
             if motifs:
-                ledger.write("motif", "curator", motifs)
+                ledger.write("motif", "curator", motifs,
+                             shapes=[m["shape_key"] for m in motifs])
 
-            planned = self.architect.plan(intent, session_id, knowledge)
+            planned = self.architect.plan(intent, session_id, knowledge, motifs)
             reply, trace, truncated = planned["reply"], planned["trace"], planned["truncated"]
             ledger.write("edit", "architect", trace, truncated=truncated)
 
@@ -320,8 +325,15 @@ class Orchestrator:
                         note="observation-only run; no repair was attempted")
         ledger.write("counterexample", "orchestrator", counterexamples)
 
+        # A motif is only worth keeping if the turn actually proved something:
+        # no counterexamples left, and nothing waiting on a human.
         if score == 0 and not ledger.breakpoints:
-            self.curator.store(current, compiled, ledger.bundle())
+            stored = self.curator.store(current, compiled, ledger.bundle())
+            if stored:
+                ledger.write("motif", "curator", {
+                    "shape_key": stored["shape_key"],
+                    "times_verified": stored["times_verified"],
+                }, stored=True)
 
         return {
             "reply": reply,

@@ -61,8 +61,9 @@ Verified working, end to end:
 - Agentic breakpoints on destructive edits, and the proof-carrying evidence
   bundle.
 
-Not built at all: cost estimation, the Memory Curator, real-state drift, and an
-evaluation protocol.
+Not built at all: cost estimation, real-state drift, and the half of the
+evaluation protocol that needs people. The Memory Curator was built on
+2026-09-17 (M3 in DEV-PLAN.md).
 
 **Closed so far:** G1, G5 (2026-09-06); G2, G3, G4, G6, G8 (2026-09-07). G4's
 cost half stays open on purpose — see below. **G7 (evaluation) is the only gap

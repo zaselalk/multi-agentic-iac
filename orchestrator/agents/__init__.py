@@ -16,7 +16,7 @@ what the system does.
 | Security Prover       | validators/policy.py (OPA)    | deterministic |
 | Cost & Capacity       | validators/cost.py            | NOT BUILT     |
 | DevOps                | validators/deploy.py          | deterministic |
-| Memory Curator        | agents/curator.py             | NOT BUILT     |
+| Memory Curator        | agents/curator.py             | deterministic |
 | Orchestrator          | state_machine.py              | deterministic |
 | Blackboard            | ledger.py (see below)         | deterministic |
 | -                     | agents/repair.py (Error->Edit)| deterministic |
