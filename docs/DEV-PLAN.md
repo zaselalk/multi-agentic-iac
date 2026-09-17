@@ -1,7 +1,7 @@
 # Development plan: closing the gap between the proposal and the repository
 
-*Written 2026-09-14. Companion to [FUTURE-WORK.md](FUTURE-WORK.md), not a
-replacement for it.*
+*Written 2026-09-14, plan revised 2026-09-17. Companion to
+[FUTURE-WORK.md](FUTURE-WORK.md), not a replacement for it.*
 
 `FUTURE-WORK.md` asks "what does this system still not do?" and answers it
 honestly. This document asks a different question:
@@ -14,7 +14,20 @@ paragraph in Chapter 6. A claim your own README contradicts is a viva
 question you will answer badly. Everything below is the second kind, plus the
 sequencing needed to close it.
 
-Three findings, in descending order of how much damage they do.
+**How to read this.** §1–§5 are the analysis: five findings from diffing the
+proposal deck against the code, in descending order of damage. §1, §3 and part
+of §5 are now closed, and the text is kept because the *argument* is what the
+write-up needs, not just the outcome. The implementation plan at the end is
+the forward-looking part, and is the only section that should be edited as
+work lands.
+
+| Section | Finding | State |
+|---|---|---|
+| §1 | The blackboard was already replaced; the repository said otherwise | ✅ Closed 2026-09-14 |
+| §2 | "Universal" is three claims at three different stages | ◐ Scoped in writing; Axis A needs P4 |
+| §3 | Four methodology deviations, none written down | ✅ Closed 2026-09-17 — `RESEARCH-GAPS.md` D1–D4 |
+| §4 | The evaluation slide 10 promised does not exist | ○ Open — P1, P2, P14 |
+| §5 | Three named methodology components are absent | ◐ M3 built; M1 and M2 open — P6, P7 |
 
 ---
 
@@ -401,88 +414,117 @@ that order.
 
 ## Implementation plan
 
-Ordered by dependency, not by size. Effort is working days for one person.
+*Revised 2026-09-17. Everything above is analysis; this is what is left to do
+about it. Effort is working days for one person.*
 
-### Phase 0 — unblock the clock (do today)
+### Where this stands
 
-| # | Task | Effort | Why first |
+| | |
+|---|---|
+| **Closed** | §1 blackboard→ledger · §2 "universal" scoped in `README.md` · §3 D1–D4 written into `RESEARCH-GAPS.md` · §5 M3 Memory Curator built |
+| **Open** | The evaluation (§4) · M1 proximity · M2 cost · four wording fixes · tests · **ethics** |
+| **Non-gated work remaining** | ≈ **7.5 days** |
+| **Gated work** | A4, behind an ethics application that has not been submitted |
+
+Three things surfaced while doing the above that had no task and now do:
+A3 needs a second arm (B1b), the test suite cannot run in this container at
+all (D0), and two claims still need narrowing in prose (C3).
+
+---
+
+### Phase A — the clock (1 task)
+
+| # | Task | Effort | Why it is alone in its phase |
 |---|---|---|---|
-| 0.1 | **Submit the ethics application (A1)** | 1 day to write, then waiting | The only item whose duration cannot be compressed by working harder. It gates A4, which gates both metrics the proposal names. It has been the critical path for some time and is still not submitted. |
+| **P1** | **Submit the ethics application** (`FUTURE-WORK.md` A1). | 1 d to write, then waiting | The only item whose duration cannot be compressed by working harder. It gates A4, which gates *both* metrics slide 10 names. It has been the critical path since the plan was first written and is still not submitted. |
 
-Nothing else in this plan competes with 0.1. Start it before reading further.
+Nothing else competes with P1. Every other phase can proceed in parallel with
+the waiting, and none of them can start the waiting sooner.
 
-### Phase 1 — make the repository state the thesis (≈2 days, no dependencies) — **COMPLETE 2026-09-17**
+### Phase B — evidence (≈3 days, nothing blocking)
 
-Pure framing debt. Cheap, and it removes the two questions an examiner is
-most likely to ask.
+The phase that decides whether there is a result to defend.
 
 | # | Task | Effort | Done when |
 |---|---|---|---|
-| ~~1.1~~ | ~~Rename `blackboard.py` → `ledger.py`, `Blackboard` → `EvidenceLedger`.~~ **Done 2026-09-14.** | 0.5 d | ✅ Live turn and SSE stream both verified. |
-| ~~1.2~~ | ~~Delete dead `counterexamples()`; make `latest`/`all_of` private.~~ **Done 2026-09-14** — `all_of()` was also dead, so it was deleted rather than hidden. | 0.25 d | ✅ No public reader remains. |
-| ~~1.3~~ | ~~Rewrite the `README.md` protocol row; fix `orchestrator/README.md` and the `deploy.py` docstring.~~ **Done 2026-09-14** — also `terraform.py`, `agents/__init__.py`, `server.py`, and the canvas vocabulary. | 0.5 d | ✅ No document claims an agent reads the ledger. |
-| ~~1.4~~ | ~~Write the three methodology-deviation paragraphs into `RESEARCH-GAPS.md`.~~ **Done 2026-09-17** — four, not three: LocalStack (D4) belongs with them. | 0.5 d | ✅ `RESEARCH-GAPS.md` §D1–D4. |
-| ~~1.5~~ | ~~Add the Chapter 1 scoping sentence for "universal".~~ **Done 2026-09-17** — a table in `README.md`, since that is where the word first appears and it needed three rows, not a sentence. | 0.25 d | ✅ The word is defined before it is used. |
+| **P2** | **A3 — text-only baseline CLI.** Same agents, same validators, no canvas. | 1 d | A comparative number exists. Unblocks every "compared to text-based workflows" sentence — which slide 10 commits to explicitly. |
+| **P3** | **Motif-seeded vs unseeded arm.** Same task list, run twice: empty motif store, then warm. | 0.5 d | The Memory Curator stops being *built but unevidenced*. See §5/M3 — the seeded-fault benchmark cannot measure it, because it runs `intent=""` and never enters `plan`. This is the cheapest place to fix that, and it rides on P2's harness. |
+| **P4** | **Azure spike.** 3–5 registry types; compile; fix whichever of the four AWS leaks fire. | 1 d | Either "a provider is pure registry data" or "it costs N lines across 4 files" — both are reportable, and until one is run, §2's Axis A is a design property rather than a result. |
+| **P5** | **C1 coverage.** Import three public Terraform repos; report `unmapped` as a percentage. | 0.5 d | The largest stated limitation becomes a quantified boundary. |
 
-### Phase 2 — convert claims into measurements (≈2.5 days, parallel with Phase 1)
+**Watch item for P4.** `decompiler.py:104` hardcodes `aws_` in the address
+regex, so importing a non-AWS file finds **zero** dependency edges and says
+nothing about it. Add a failing-import test alongside the fix; a silent wrong
+answer is worse than the leak.
 
-| # | Task | Effort | Done when |
-|---|---|---|---|
-| 2.1 | **A3 — text-only baseline CLI.** Same agents, same validators, no canvas. | 1 d | A comparative number exists. Unblocks every "compared to text-based workflows" sentence. |
-| 2.2 | **Azure spike.** 3–5 registry types; compile; fix whichever of the four leaks fire. | 1 d | Either "a provider is pure registry data" or "it costs N lines in 4 files" — both reportable. |
-| 2.3 | **C1 coverage.** Import three public Terraform repos; report `unmapped` as a percentage. | 0.5 d | The largest limitation becomes a quantified boundary. |
+### Phase C — finish the methodology chapter (≈1 day)
 
-### Phase 2b — the three absent methodology components (≈1.5 d, see §5)
-
-Named on slide 9, so an examiner reads them as delivered. Lower priority than
-2.1–2.3, higher than Phase 3.
+Slide 9 and 11 items an examiner reads as delivered. Cheap, and none of it
+touches the benchmark.
 
 | # | Task | Effort | Done when |
 |---|---|---|---|
-| ~~2.4~~ | ~~**M3 — Memory Curator.**~~ **Done 2026-09-17.** | 1 d | ✅ Retrieval and storage verified live. **No ablation row was added** — the benchmark runs `intent=""` and never enters `plan`, so a row would measure nothing. See revised note in §5/M3. |
-| 2.5 | **M1 — proximity.** Cluster by distance, report to the Architect as context, flip `status` in the schema. | 0.5 d | A proximity suggestion reaches the human through the normal approval flow. Non-binding, so the benchmark cannot move. |
-| 2.6 | **M2 — cost.** Reclassify rather than build; one paragraph. | 0.25 d | The slide's cost clause has a stated reason, not a silence. |
+| **P6** | **M1 — proximity.** Cluster by canvas distance, report to the Architect as context, flip `status` in `schema.json`. | 0.5 d | A proximity suggestion reaches the human through the normal approval flow. `binding: false`, so correctness and the benchmark cannot move. **Or** reclassify in one sentence — both are defensible; an unexplained blank is not. |
+| **P7** | **M2 — cost.** Reclassify rather than build. | 0.25 d | The slide's "security/cost" clause has a stated reason. `cost.py` already makes the argument: an untraceable price figure is exactly the evidence a proof-carrying bundle exists to exclude. |
+| **P8** | **Two claims still to narrow in prose.** "Zero-Drift Architecture" (slide 11) → desired-vs-last-compiled, not desired-vs-live, because nothing runs `apply` (C3/C4 in `FUTURE-WORK.md`). And D3, MCP "real-time deltas" → what SSE actually delivers. | 0.25 d | Neither claim is stated in a form the implementation does not support. |
 
-### Phase 3 — evidence hygiene (≈2 days, any time before writing up)
+### Phase D — tests (≈2.25 days)
 
-From `FUTURE-WORK.md` C8. Not research results, but a reviewer will look.
+| # | Task | Effort | Note |
+|---|---|---|---|
+| **P9** | **Make the test suite runnable here.** `mcp-server`'s two venvs are Windows-layout (`Scripts/`, `Lib/`) and the orchestrator venv has no `pytest`. | 0.25 d | **Do this first.** 28 existing tests cannot be run in this container, which means they are currently unverified on every change — including the last four commits. |
+| **P10** | Golden HCL — pin the compiler's output for a fixed graph. | 0.5 d | |
+| **P11** | Adapter round-trip — `canvas_to_nodes ∘ nodes_to_canvas`. | 0.5 d | W2 found a real loss here (`tags` returned as a JSON string) that this would have caught first. |
+| **P12** | State machine with a stub Architect — assert `J` non-increasing and the repair budget respected. | 0.5 d | |
+| **P13** | `opa test` for the five policies; the A2 fault corpus doubles as fixtures. | 0.5 d | |
 
-| # | Task | Effort |
-|---|---|---|
-| 3.1 | Golden HCL test — pin the compiler's output for a fixed graph. | 0.5 d |
-| 3.2 | Adapter round-trip test — `canvas_to_nodes ∘ nodes_to_canvas`. W2 found a real loss here that this would have caught. | 0.5 d |
-| 3.3 | State machine test with a stub Architect — assert J non-increasing, repair budget respected. | 0.5 d |
-| 3.4 | `opa test` for the five policies; the A2 fault corpus doubles as fixtures. | 0.5 d |
-
-### Phase 4 — gated on 0.1
+### Phase E — gated on P1
 
 | # | Task | Blocked by |
 |---|---|---|
-| 4.1 | **A4 human study.** Measures State Reconciliation Accuracy and Correction Speed — the two metrics slide 10 promises. | Ethics approval |
-| 4.2 | Re-run A2 with post-Phase-2 code; the trend across runs is itself a result. | 2.1–2.3 |
+| **P14** | **A4 human study.** Produces State Reconciliation Accuracy and Correction Speed — the two metrics slide 10 names, defined in three documents and measured in none. | P1 |
+| **P15** | Re-run A2 with post-Phase-B code. The trend across runs is itself a result. | P2–P5 |
+
+### Housekeeping (≈0.25 d, raised repeatedly, never actioned)
+
+| | |
+|---|---|
+| `tsconfig.tsbuildinfo` is a tracked build artifact that dirties on every `tsc` run | `.gitignore` it |
+| Nothing is pushed | Three repos, three feature branches, all local only: `improve/v1`, `new-ui`, `feat/visor-integration` |
+| `.gitattributes` absent | Four files still store CRLF against 47 LF; `* text=auto eol=lf` settles it |
 
 ---
 
 ## Critical path
 
 ```
-A1 ethics ──────────────────────── (waiting) ─────────────── A4 human study ── both named metrics
-                                                                  │
-Phase 1 (framing) ──┐                                             │
-Phase 2 (evidence) ─┼── write-up can begin ───────────────────────┴──> dissertation
-Phase 3 (tests) ────┘
+P1 ethics ──── submit ──── (unbounded wait) ──── P14 human study ──── both named metrics
+    │                                                                        │
+    └── everything below runs in parallel with the wait                      │
+                                                                             │
+B  evidence   (3 d)   ── P2 P3 P4 P5  baseline, arm, Azure, coverage ──┐               │
+C  methodology(1 d)   ── P6 P7 P8     proximity, cost, wordings ──────┼── write-up ──┴──> dissertation
+D  tests    (2.25 d)  ── P9 first, then P10-P13 ──────────────────────┘
 ```
 
-Phases 1–3 total about **6.5 working days** and have no external dependency.
-Phase 4 has an unbounded wait that has not started.
+**≈7.5 non-gated days.** The wait has not started.
 
-## If you do only three things
+Task ids are `P1`–`P15` and belong to this document only. `A1`–`A4`, `B1`–`B3`
+and `C1`–`C8` are `FUTURE-WORK.md`'s; `D1`–`D4` are `RESEARCH-GAPS.md`'s
+proposal deviations; `G1`–`G9` are the gap register. They are different
+schemes and are not renumbered here.
 
-1. **Submit the ethics application.** Nothing else on this page has a clock
-   you cannot control.
-2. **Phase 1.** Two days to stop the repository arguing against the thesis.
-3. **A3, the text-only baseline.** One day, and every comparative claim in
-   the dissertation depends on it.
+## If you do only four things
+
+| | | Why |
+|---|---|---|
+| 1 | **P1 — submit the ethics application** | The only clock you cannot speed up, and it gates the dissertation's headline metrics. Unchanged from the first version of this document, which is itself the finding. |
+| 2 | **P2 — the text-only baseline** | One day, and slide 10 committed to it in writing. Every comparative claim rests on it. |
+| 3 | **P9 — make the tests runnable** | A quarter of a day. 28 tests have been unverifiable for this entire work stream. |
+| 4 | **P3 — the curator arm** | Half a day riding on B1a, and it is the difference between a component that exists and one that is shown to do something. |
+
+Phase C (P6–P8) is a day and makes the methodology chapter defensible, but it changes
+no result. Do it while waiting on A1, not instead of Phase B.
 
 ---
 
