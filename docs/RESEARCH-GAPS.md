@@ -7,7 +7,9 @@ finish the research. Every claim below was checked against the code on the
 Gap IDs (`G1`…`G9`) are referenced from the source and from the other READMEs.
 
 This is the register of **what** is missing and why, and what closed it.
-[PLAN.md](PLAN.md) was the order it got done in.
+Deviations from the proposal — mechanisms named on slides 9–10 that were built
+differently — are recorded separately below, and are decisions rather than
+gaps. [PLAN.md](PLAN.md) was the order it got done in.
 [FUTURE-WORK.md](FUTURE-WORK.md) is what is *left* — written for someone who
 did not do any of it, and separating what the research still needs from what
 was deliberately left as an interface from the limits of what was built.
@@ -67,6 +69,112 @@ cost half stays open on purpose — see below. **G7 (evaluation) is the only gap
 left that blocks the result, and its automatic half now exists** —
 `benchmark/`, 27 seeded-fault cases with an ablation table. What remains of it
 needs people.
+
+---
+
+## Deviations from the proposal
+
+Four mechanisms named in the proposal presentation (slides 9–10) were not
+built as named. None of them is a shortfall — three are strictly stronger than
+what was proposed, and one was a requirement that dissolved under inspection.
+They are recorded here because an unexplained deviation reads as an oversight,
+while an explained one reads as a decision, and the proposal is the document
+an examiner will hold.
+
+Unlike `G1`…`G9`, nothing in this section is open. It is here to be cited.
+
+### D1 — LangGraph → a hand-rolled deterministic controller
+
+**Proposed:** "LangGraph Orchestration: Cyclic state machine managing agent
+transitions and human-in-the-loop interrupts."
+
+**Built:** `orchestrator/state_machine.py`, with no LangGraph dependency
+anywhere in the project.
+
+**Why.** The claim this system makes is that the pipeline is *deterministic
+except where it is explicitly not* — only `plan` and `repair` call a model,
+both through the Architect, and everything else is code whose output is a
+function of its input. A framework that owns control flow makes that claim
+harder to demonstrate, not easier: the reader has to take the framework's
+scheduling on trust. Here the FSM is 491 lines that can be read end to end,
+the repair loop is Algorithm 1 written out with its `J` non-increasing
+guard visible, and the human-in-the-loop interrupt is an ordinary `return`
+rather than a framework primitive.
+
+This is a case where the implementation is more defensible than the plan, and
+the benchmark depends on it: the four ablation columns in `benchmark/RESULTS.md`
+are produced by disabling components in this controller, which is only
+meaningful because the controller is the thing that decides.
+
+### D2 — Grammar-constrained decoding → no decoding at all
+
+**Proposed:** "Constrained Synthesizer: Compiles validated schemas into .tf HCL
+code using grammar-constrained decoding to eliminate hallucinations."
+
+**Built:** a deterministic compiler in `mcp-server/compiler.py`. The model
+never emits HCL.
+
+**Why.** Constrained decoding narrows a model's output space to
+grammar-admissible tokens; it reduces the rate of invalid output but the model
+is still the thing producing the text. Here the graph is lowered to HCL by
+code — `schema.json` sets `compiler.strategy.llm_allowed: false` — so there is
+no decoding step to constrain and a hallucinated provider field cannot be
+emitted at all. Not generating is the limit case of constrained generation.
+
+MACOG needs constrained decoding because its Engineer generates HCL text. The
+Engineer row in `orchestrator/agents/__init__.py` is a compiler rather than a
+prompt for exactly this reason.
+
+### D3 — MCP "real-time deltas" → request/response, with SSE for the trace
+
+**Proposed:** "MCP Bridge: Implementing a Python-based MCP server/client to
+stream Real-Time Deltas."
+
+**Built:** MCP is request/response — `set_graph` pushes the canvas, `get_graph`
+reads back an agent's edits. Server-sent events stream the *agent trace* from
+orchestrator to canvas while a turn runs, not graph deltas over MCP.
+
+**Why, and the honest form of the claim.** The user-visible requirement behind
+"real-time" is that a turn should be watchable while it happens rather than
+only readable afterwards, and that is met: `POST /projects/{id}/chat/stream`
+emits a `state` event per FSM transition and a `write` event per ledger entry,
+measured arriving from 0.0s of a ~7s turn through the canvas's own proxy.
+Delta streaming at the MCP layer would be an optimisation of a channel that
+carries one graph per turn between two processes on the same host. It is not
+implemented, no result depends on it, and this is the deviation to state
+plainly rather than reinterpret — the claim should be narrowed to what SSE
+delivers.
+
+### D4 — LocalStack → `terraform plan` offline
+
+**Proposed, and assumed throughout early planning:** the DevOps sandbox needs
+LocalStack.
+
+**Built:** real Terraform (v1.9.8) running `plan` against placeholder
+credentials with the provider's skip flags — see `compiler.preamble.plan_mode`
+in `schema.json`. No container, no account, no network past the one-time
+provider download.
+
+**Why this matters more than the convenience.** MACOG's ablation shows the
+DevOps sandbox is the costliest component to remove — IaC-Eval 74.02 → 56.93,
+the largest drop of its eight. This environment cannot run LocalStack at all
+(no Docker; `post-create.sh` never ran), so the component with the largest
+measured contribution looked unavailable. It turned out not to need one:
+`terraform plan` resolves the real provider schema, expands every default, and
+emits plan JSON offline.
+
+That plan is what the IR structurally cannot carry. The IR says
+`tags = merge(local.default_tags, ...)`; the plan says
+`tags_all = {"Owner": "visor", ...}`. So `deploy` runs *before* `prove`, which
+is not MACOG's order, and the plan becomes an input to the Security Prover.
+`benchmark/RESULTS.md` shows the payoff directly: `tag_override` is detected
+100% by plan-grounded policy in the full configuration and **0% with `devops`
+removed** — and 0% with `prover` removed too, since a plan-grounded rule needs
+both the plan and something to evaluate it. All 5 of the DevOps validator's 27
+cases are this fault class. It is undetectable without a real `terraform plan`.
+
+**A simplification over MACOG worth stating as one:** the sandbox ablation's
+benefit is captured without the sandbox.
 
 ---
 

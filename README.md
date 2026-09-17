@@ -9,6 +9,22 @@ canvas. The canvas, the agents and the compiler all read and write **one**
 graph, so the diagram and the Terraform cannot drift apart — they are two
 renderings of the same state.
 
+### What "universal" claims, and what it does not
+
+The title's *universal* is claimed over the **synchronisation mechanism**, not
+over the resource vocabulary. Stated as three separate things, because they
+are at three different stages:
+
+| | Claim | Status |
+|---|---|---|
+| **Mechanism** | The way visual state and declarative state are kept in correspondence is independent of provider and of IaC target | **Claimed.** `view` / `desired_state` separation with `view` never compiled; spatial nesting lowered to `depends_on` but gated by the registry so it cannot invent a relationship Terraform has no way to express; round-trip `equiv(P₁, P*)` checked on every compile; intent inferred from presence. None of it names AWS or Terraform. |
+| **Provider** | The same schema admits providers other than AWS without redesign | **Designed for, not yet demonstrated.** `node_model.provider` is a free key and the registry is data, but it holds 11 AWS types and nothing else, and four sites still emit `aws` literally. See `docs/DEV-PLAN.md` §2. |
+| **IaC target** | The same schema compiles to something other than Terraform | **Not claimed.** `desired_state` is Terraform's attribute vocabulary — `schema.json` says so itself — and registry entries carry `terraform_type` and raw HCL. Pulumi or Bicep would need an IR layer beneath this one. Out of scope, deliberately. |
+
+The middle row has a one-day experiment attached, with a binary answer: can a
+provider be added without touching Python? Until that is run, "universal
+across providers" is a design property and is described as one.
+
 ```
 visual-devops-builder  ──HTTP──>  multi-agentic-iac/orchestrator  ──MCP/stdio──>  mcp-server
    (React Flow canvas)              (agents, state machine)                (graph + Terraform compiler)
@@ -55,7 +71,7 @@ and when.
 |---|---|
 | `orchestrator/` | The agent runtime — state machine, evidence ledger, agents, validators. |
 | `policies/` | Rego rules the Security Prover evaluates every turn. |
-| `docs/RESEARCH-GAPS.md` | **What is still missing, and why.** The register. |
+| `docs/RESEARCH-GAPS.md` | **What is still missing, and why.** The register — plus `D1`–`D4`, the four mechanisms the proposal named that were built differently, and why each is a decision rather than a shortfall. |
 | `docs/PLAN.md` | **How the rest got finished.** Four workstreams, sequenced. W1–W3 done. |
 | `docs/FUTURE-WORK.md` | **What is left, and why.** What the research still needs, what was deliberately left as an interface, and the limits of what was built. |
 | `benchmark/` | **The seeded-fault benchmark.** 27 cases, four ablation rows, a committed run in `RESULTS.md`. |

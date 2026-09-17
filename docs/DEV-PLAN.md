@@ -242,7 +242,7 @@ Ordered by dependency, not by size. Effort is working days for one person.
 
 Nothing else in this plan competes with 0.1. Start it before reading further.
 
-### Phase 1 — make the repository state the thesis (≈2 days, no dependencies)
+### Phase 1 — make the repository state the thesis (≈2 days, no dependencies) — **COMPLETE 2026-09-17**
 
 Pure framing debt. Cheap, and it removes the two questions an examiner is
 most likely to ask.
@@ -252,8 +252,8 @@ most likely to ask.
 | ~~1.1~~ | ~~Rename `blackboard.py` → `ledger.py`, `Blackboard` → `EvidenceLedger`.~~ **Done 2026-09-14.** | 0.5 d | ✅ Live turn and SSE stream both verified. |
 | ~~1.2~~ | ~~Delete dead `counterexamples()`; make `latest`/`all_of` private.~~ **Done 2026-09-14** — `all_of()` was also dead, so it was deleted rather than hidden. | 0.25 d | ✅ No public reader remains. |
 | ~~1.3~~ | ~~Rewrite the `README.md` protocol row; fix `orchestrator/README.md` and the `deploy.py` docstring.~~ **Done 2026-09-14** — also `terraform.py`, `agents/__init__.py`, `server.py`, and the canvas vocabulary. | 0.5 d | ✅ No document claims an agent reads the ledger. |
-| 1.4 | Write the three methodology-deviation paragraphs (LangGraph, constrained decoding, MCP deltas) into `RESEARCH-GAPS.md`. | 0.5 d | Each deviation reads as a decision with a reason. |
-| 1.5 | Add the Chapter 1 scoping sentence for "universal" (Axis C claimed, Axis B out of scope). | 0.25 d | The word is defined before it is used. |
+| ~~1.4~~ | ~~Write the three methodology-deviation paragraphs into `RESEARCH-GAPS.md`.~~ **Done 2026-09-17** — four, not three: LocalStack (D4) belongs with them. | 0.5 d | ✅ `RESEARCH-GAPS.md` §D1–D4. |
+| ~~1.5~~ | ~~Add the Chapter 1 scoping sentence for "universal".~~ **Done 2026-09-17** — a table in `README.md`, since that is where the word first appears and it needed three rows, not a sentence. | 0.25 d | ✅ The word is defined before it is used. |
 
 ### Phase 2 — convert claims into measurements (≈2.5 days, parallel with Phase 1)
 
