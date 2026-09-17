@@ -146,6 +146,21 @@ The proposal names the right two metrics. They need operational definitions:
 - **Correction Speed.** Wall-clock from a violation being introduced to it
   being resolved, visual vs. the A3 baseline.
 
+  **Measure the model separately from the system.** Turn latency observed on
+  2026-09-17 ranged from ~6 s to 112 s for comparable single-resource requests,
+  with essentially all of it inside the Architect's model call and no
+  correlation to graph size — a fresh empty project took 112 s against 58 s for
+  a thirteen-node one, and one request came back as a completion with no
+  choices at all. Graph size, motif retrieval and tool-schema growth were each
+  checked and cleared. That variance is upstream and outside this system's
+  control, but it is the same wall clock a participant experiences, so a
+  Correction Speed figure gathered across a degraded window measures the
+  provider rather than the interface. Record per-turn orchestrator timings
+  alongside participant timings — the evidence bundle already carries
+  `duration_s` and the per-entry `at` offsets — and report the split. The
+  deterministic half of a turn is ~110 ms for a hand edit and ~8 s with a real
+  `terraform plan`; those are the parts this research is actually claiming.
+
 Add three the system can now report for free, because the plumbing exists:
 
 - **Agent suggestions accepted vs. refused.** Every intent conflict produces an
