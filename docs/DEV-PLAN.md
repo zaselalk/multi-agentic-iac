@@ -24,7 +24,7 @@ work lands.
 | Section | Finding | State |
 |---|---|---|
 | §1 | The blackboard was already replaced; the repository said otherwise | ✅ Closed 2026-09-14 |
-| §2 | "Universal" is three claims at three different stages | ◐ Scoped in writing; Axis A needs P4 |
+| §2 | "Universal" is three claims at three different stages | ✅ Closed 2026-09-17 — scoped in writing, Axis A demonstrated |
 | §3 | Four methodology deviations, none written down | ✅ Closed 2026-09-17 — `RESEARCH-GAPS.md` D1–D4 |
 | §4 | The evaluation slide 10 promised does not exist | ○ Open — P1, P2, P14 |
 | §5 | Three named methodology components are absent | ◐ M3 built; M1 and M2 open — P6, P7 |
@@ -124,7 +124,42 @@ The title and Objective (a) both promise a *Universal Schema*. An examiner
 will read that as "any provider, any IaC tool". Separate the axes before
 they do.
 
-### Axis A — universal across cloud providers: designed for it, unproven
+### Axis A — universal across cloud providers: **demonstrated 2026-09-17**
+
+> **Result.** Azure was added (P4). Four `azurerm` types compile, import and
+> round-trip with every dependency recovered. The resource layer needed **no
+> code**; the preamble needed 90 lines. The four leaks below all fired, exactly
+> as predicted, and are fixed. The original analysis is kept below because the
+> prediction being right is itself worth citing.
+
+#### What it cost, measured
+
+| | Added | Removed | |
+|---|---|---|---|
+| `schema.json` | 187 | 10 | Four `azurerm` registry entries **plus** the new provider-keyed preamble |
+| `compiler.py` | 90 | 28 | `providers_used`, `_required_providers`, per-provider `_provider_block`, conditional region variable |
+| `decompiler.py` | 29 | 2 | Address prefixes derived from the registry |
+| `harmonizer.py` | 8 | 1 | Pinning reports every provider, not just AWS |
+| `tests/test_multi_provider.py` | +12 tests | | Compile, features block, round-trip, mixed graph, unknown provider |
+
+**The honest claim is now "registry data plus a preamble entry", not "registry
+data".** That is weaker than the design promised and stronger than anything
+that could have been said before the experiment ran.
+
+Two findings worth the write-up:
+
+- **The resource layer was genuinely universal already.** Four registry
+  entries produced correct HCL on the first compile — right types, references
+  resolved to `azurerm_resource_group.main.name`, defaults applied, ordering
+  right, zero code changed. The `references` / `attribute_map` /
+  `companion_resources` model carried a second cloud without being designed
+  against one.
+- **The preamble could never have generalised by renaming.** Azure requires an
+  empty `features {}` **block**, not an argument. A parameterised
+  `provider "{name}" { region = ... }` would still have been wrong. That is
+  why the schema now has `arguments` *and* `blocks`.
+
+#### The original analysis (pre-experiment)
 
 Structurally sound. `node_model.provider` is a free key, `resource_registry`
 is data keyed by provider, and `compiler.py` / `decompiler.py` thread
@@ -134,15 +169,19 @@ edit.
 Empirically: **11 AWS types, 0 Azure, 0 GCP.** And the parameterisation leaks
 in four places, which would make an Azure addition a code change after all:
 
-| Site | Leak |
-|---|---|
-| [`decompiler.py:104`](../../mcp-server/decompiler.py#L104) | `ADDRESS = re.compile(r'\b(aws_[a-z0-9_]+)\.(...)')` — hardcoded |
-| [`compiler.py:611`](../../mcp-server/compiler.py#L611) | `provider "aws" { ... }` literal |
-| [`compiler.py:666`](../../mcp-server/compiler.py#L666) | `hashicorp/aws` in `required_providers` |
-| [`compiler.py:759`](../../mcp-server/compiler.py#L759) | `"providers": [{"name": "aws", ...}]` |
+| Site | Leak | Outcome |
+|---|---|---|
+| `decompiler.py` `ADDRESS` | `re.compile(r'\b(aws_[a-z0-9_]+)\.(...)')` — hardcoded | ✅ Prefixes now derived from `resource_registry` |
+| `compiler.py` `_provider_block` | `provider "aws" { ... }` literal | ✅ Per-provider, with `arguments` and `blocks` |
+| `compiler.py` preamble | `hashicorp/aws` in `required_providers` | ✅ Emitted per provider actually used |
+| `compiler.py` plan mode | AWS skip-flags shared by all | ✅ `providers.<name>.plan_mode_arguments` |
 
-The regex is the dangerous one. Importing an Azure `.tf` file today finds
-**zero** dependency edges and fails silently — you get nodes and no graph.
+The regex was the dangerous one, and the prediction was confirmed exactly:
+run against the compiled Azure file, the old pattern matched **nothing** —
+every dependency lost, no warning, a graph of nodes with no relationships.
+The replacement recovers all three edges. This is the one leak that failed
+*silently*, which is why the fix ships with a round-trip test rather than an
+assertion.
 
 ### Axis B — universal across IaC targets: no, and the schema admits it
 
@@ -178,9 +217,11 @@ resource vocabulary. **That reading is defensible. It is not the reading
 anyone reaches unaided.** Say it in Chapter 1, in one sentence, before the
 question is asked.
 
-### The test that settles Axis A
+### The test that settled Axis A
 
-Universality here has a binary, one-day experiment:
+Universality here had a binary, one-day experiment. **It was run on
+2026-09-17 — see the result at the top of Axis A.** The framing is kept
+because the question is the right one to put in the write-up:
 
 > **Can a provider be added without touching Python?**
 
@@ -423,12 +464,18 @@ about it. Effort is working days for one person.*
 |---|---|
 | **Closed** | §1 blackboard→ledger · §2 "universal" scoped in `README.md` · §3 D1–D4 written into `RESEARCH-GAPS.md` · §5 M3 Memory Curator built |
 | **Open** | The evaluation (§4) · M1 proximity · M2 cost · four wording fixes · tests · **ethics** |
-| **Non-gated work remaining** | ≈ **7.5 days** |
+| **Non-gated work remaining** | ≈ **6.25 days** |
 | **Gated work** | A4, behind an ethics application that has not been submitted |
 
-Three things surfaced while doing the above that had no task and now do:
-A3 needs a second arm (B1b), the test suite cannot run in this container at
-all (D0), and two claims still need narrowing in prose (C3).
+Two things surfaced while doing the above that had no task and now do: A3
+needs a second arm (P3), and two claims still need narrowing in prose (P8).
+
+A third, P9, was raised and then **withdrawn** — I had reported the test suite
+as unrunnable in this container after `pytest` was missing. It is `unittest`,
+it runs with the stdlib, and `MANUAL-TEST.md:33` documents the command. The 28
+tests pass against current `HEAD`. Recorded rather than deleted because "the
+tool I reached for was absent" is not the same finding as "the suite cannot
+run", and the difference mattered.
 
 ---
 
@@ -441,7 +488,7 @@ all (D0), and two claims still need narrowing in prose (C3).
 Nothing else competes with P1. Every other phase can proceed in parallel with
 the waiting, and none of them can start the waiting sooner.
 
-### Phase B — evidence (≈3 days, nothing blocking)
+### Phase B — evidence (≈2 days remaining, nothing blocking)
 
 The phase that decides whether there is a result to defend.
 
@@ -449,13 +496,14 @@ The phase that decides whether there is a result to defend.
 |---|---|---|---|
 | **P2** | **A3 — text-only baseline CLI.** Same agents, same validators, no canvas. | 1 d | A comparative number exists. Unblocks every "compared to text-based workflows" sentence — which slide 10 commits to explicitly. |
 | **P3** | **Motif-seeded vs unseeded arm.** Same task list, run twice: empty motif store, then warm. | 0.5 d | The Memory Curator stops being *built but unevidenced*. See §5/M3 — the seeded-fault benchmark cannot measure it, because it runs `intent=""` and never enters `plan`. This is the cheapest place to fix that, and it rides on P2's harness. |
-| **P4** | **Azure spike.** 3–5 registry types; compile; fix whichever of the four AWS leaks fire. | 1 d | Either "a provider is pure registry data" or "it costs N lines across 4 files" — both are reportable, and until one is run, §2's Axis A is a design property rather than a result. |
+| ~~**P4**~~ | ~~**Azure spike.**~~ **Done 2026-09-17.** | 1 d | ✅ Four `azurerm` types compile, import and round-trip. All four leaks fired and are fixed. Answer: **registry data plus a preamble entry** — resource layer needed no code, preamble needed 90 lines. 12 tests added; 40 pass. |
 | **P5** | **C1 coverage.** Import three public Terraform repos; report `unmapped` as a percentage. | 0.5 d | The largest stated limitation becomes a quantified boundary. |
 
-**Watch item for P4.** `decompiler.py:104` hardcodes `aws_` in the address
-regex, so importing a non-AWS file finds **zero** dependency edges and says
-nothing about it. Add a failing-import test alongside the fix; a silent wrong
-answer is worse than the leak.
+**Watch item for P4 — confirmed and closed.** The address regex hardcoded
+`aws_`, so a non-AWS file found zero dependency edges and said nothing about
+it. Verified against the compiled Azure file before fixing: the old pattern
+matched nothing at all. Prefixes are now derived from the registry, and
+`tests/test_multi_provider.py` asserts all three edges survive a round trip.
 
 ### Phase C — finish the methodology chapter (≈1 day)
 
@@ -468,11 +516,11 @@ touches the benchmark.
 | **P7** | **M2 — cost.** Reclassify rather than build. | 0.25 d | The slide's "security/cost" clause has a stated reason. `cost.py` already makes the argument: an untraceable price figure is exactly the evidence a proof-carrying bundle exists to exclude. |
 | **P8** | **Two claims still to narrow in prose.** "Zero-Drift Architecture" (slide 11) → desired-vs-last-compiled, not desired-vs-live, because nothing runs `apply` (C3/C4 in `FUTURE-WORK.md`). And D3, MCP "real-time deltas" → what SSE actually delivers. | 0.25 d | Neither claim is stated in a form the implementation does not support. |
 
-### Phase D — tests (≈2.25 days)
+### Phase D — tests (≈2 days)
 
 | # | Task | Effort | Note |
 |---|---|---|---|
-| **P9** | **Make the test suite runnable here.** `mcp-server`'s two venvs are Windows-layout (`Scripts/`, `Lib/`) and the orchestrator venv has no `pytest`. | 0.25 d | **Do this first.** 28 existing tests cannot be run in this container, which means they are currently unverified on every change — including the last four commits. |
+| ~~**P9**~~ | ~~**Make the test suite runnable here.**~~ **Withdrawn 2026-09-17 — the premise was wrong.** The 28 tests are `unittest`, not `pytest`, and run with the stdlib: `venv/bin/python -m unittest discover -s tests -t .` from `mcp-server/`, exactly as `MANUAL-TEST.md:33` has said all along. They pass against current `HEAD`. `pytest` has since been added to the orchestrator venv as a convenience; nothing requires it. | — | ✅ Nothing to fix. The gap was in reading the docs, not in the repo. |
 | **P10** | Golden HCL — pin the compiler's output for a fixed graph. | 0.5 d | |
 | **P11** | Adapter round-trip — `canvas_to_nodes ∘ nodes_to_canvas`. | 0.5 d | W2 found a real loss here (`tags` returned as a JSON string) that this would have caught first. |
 | **P12** | State machine with a stub Architect — assert `J` non-increasing and the repair budget respected. | 0.5 d | |
@@ -502,12 +550,12 @@ P1 ethics ──── submit ──── (unbounded wait) ──── P14 hum
     │                                                                        │
     └── everything below runs in parallel with the wait                      │
                                                                              │
-B  evidence   (3 d)   ── P2 P3 P4 P5  baseline, arm, Azure, coverage ──┐               │
+B  evidence   (2 d)   ── P2 P3 P5     baseline, curator arm, coverage ──┐               │
 C  methodology(1 d)   ── P6 P7 P8     proximity, cost, wordings ──────┼── write-up ──┴──> dissertation
-D  tests    (2.25 d)  ── P9 first, then P10-P13 ──────────────────────┘
+D  tests      (2 d)   ── P10 P11 P12 P13  golden, adapter, FSM, opa ──────┘
 ```
 
-**≈7.5 non-gated days.** The wait has not started.
+**≈6.25 non-gated days.** The wait has not started.
 
 Task ids are `P1`–`P15` and belong to this document only. `A1`–`A4`, `B1`–`B3`
 and `C1`–`C8` are `FUTURE-WORK.md`'s; `D1`–`D4` are `RESEARCH-GAPS.md`'s
@@ -520,7 +568,7 @@ schemes and are not renumbered here.
 |---|---|---|
 | 1 | **P1 — submit the ethics application** | The only clock you cannot speed up, and it gates the dissertation's headline metrics. Unchanged from the first version of this document, which is itself the finding. |
 | 2 | **P2 — the text-only baseline** | One day, and slide 10 committed to it in writing. Every comparative claim rests on it. |
-| 3 | **P9 — make the tests runnable** | A quarter of a day. 28 tests have been unverifiable for this entire work stream. |
+| 3 | **P5 — the coverage number** | Half a day, and it converts the largest stated limitation into a quantified boundary. |
 | 4 | **P3 — the curator arm** | Half a day riding on B1a, and it is the difference between a component that exists and one that is shown to do something. |
 
 Phase C (P6–P8) is a day and makes the methodology chapter defensible, but it changes

@@ -112,10 +112,16 @@ class ProviderHarmonizer:
                         severity="warning",
                     ))
 
+        # Pinning is per-provider now: a graph can name more than one, and
+        # reporting only the AWS version would understate what a run depends
+        # on. See `compiler.preamble.providers` in schema.json.
         return {
             "pinning": {
                 "required_version": self.preamble.get("required_version"),
-                "aws_provider_version": self.preamble.get("aws_provider_version"),
+                "providers": {
+                    name: spec.get("version")
+                    for name, spec in (self.preamble.get("providers") or {}).items()
+                },
                 "region": settings.get("region") or self.preamble.get("region_variable", {}).get("default"),
             },
             "counterexamples": found,

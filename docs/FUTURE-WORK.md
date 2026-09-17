@@ -251,11 +251,17 @@ These work. The boundary has to be stated.
 
 ### C1. Registry breadth
 
-**Ten AWS resource types, one provider.** Everything the system does — the
-compiler, the decompiler, the importer, nesting, companions — is driven by
-`schema.json`, so breadth is data rather than code. But ten types is a
-demonstration, not coverage, and every claim about "real infrastructure" is
-bounded by it.
+**Ten AWS types, plus four Azure types added 2026-09-17 to test the provider
+claim.** Everything the system does — the compiler, the decompiler, the
+importer, nesting, companions — is driven by `schema.json`, so breadth is data
+rather than code. The Azure spike confirmed that for the resource layer
+exactly: four registry entries compiled correctly with no code change at all.
+It also found the limit of the claim — the *preamble* was hardcoded to AWS and
+had to be made provider-keyed, so the honest form is "registry data plus a
+preamble entry". See `docs/DEV-PLAN.md` §2.
+
+Fourteen types across two providers is still a demonstration, not coverage,
+and every claim about "real infrastructure" is bounded by it.
 
 The importer's `unmapped` list is now the honest measure: import a real
 project and its length is exactly how far the registry is from covering it.

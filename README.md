@@ -18,12 +18,26 @@ are at three different stages:
 | | Claim | Status |
 |---|---|---|
 | **Mechanism** | The way visual state and declarative state are kept in correspondence is independent of provider and of IaC target | **Claimed.** `view` / `desired_state` separation with `view` never compiled; spatial nesting lowered to `depends_on` but gated by the registry so it cannot invent a relationship Terraform has no way to express; round-trip `equiv(P₁, P*)` checked on every compile; intent inferred from presence. None of it names AWS or Terraform. |
-| **Provider** | The same schema admits providers other than AWS without redesign | **Designed for, not yet demonstrated.** `node_model.provider` is a free key and the registry is data, but it holds 11 AWS types and nothing else, and four sites still emit `aws` literally. See `docs/DEV-PLAN.md` §2. |
+| **Provider** | The same schema admits providers other than AWS without redesign | **Demonstrated 2026-09-17.** Azure was added and compiles, imports and round-trips. The *resource* layer needed no code at all — four `azurerm` types as registry data. The *preamble* did: it was hardcoded to AWS in four places and is now provider-keyed data. 12 tests pin it. See `docs/DEV-PLAN.md` §2. |
 | **IaC target** | The same schema compiles to something other than Terraform | **Not claimed.** `desired_state` is Terraform's attribute vocabulary — `schema.json` says so itself — and registry entries carry `terraform_type` and raw HCL. Pulumi or Bicep would need an IR layer beneath this one. Out of scope, deliberately. |
 
-The middle row has a one-day experiment attached, with a binary answer: can a
-provider be added without touching Python? Until that is run, "universal
-across providers" is a design property and is described as one.
+The middle row had a one-day experiment attached, with a binary answer: can a
+provider be added without touching Python? It was run, and the answer is
+**half**, which is more useful than either yes or no:
+
+- **The resource layer was already data.** Four `azurerm` entries in
+  `resource_registry` produced correct HCL on the first compile — right
+  types, references resolved to `azurerm_resource_group.main.name`, defaults
+  applied, dependency order right. Zero code changed.
+- **The preamble was not.** It emitted `hashicorp/aws` and `provider "aws"`
+  regardless of what the graph contained, so an Azure graph compiled to
+  resources no `terraform init` would ever reach. Azure also needs an empty
+  `features {}` *block* rather than an argument, which is the structural
+  difference that proved one hardcoded provider block could never generalise.
+
+So the claim is now: **adding a provider is registry data plus its preamble
+entry.** That is the honest form, it is demonstrated rather than asserted, and
+the second half only exists because the experiment was run.
 
 ```
 visual-devops-builder  ──HTTP──>  multi-agentic-iac/orchestrator  ──MCP/stdio──>  mcp-server
