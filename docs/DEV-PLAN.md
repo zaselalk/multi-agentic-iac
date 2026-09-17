@@ -230,6 +230,164 @@ participants need A4, and A4 needs A1.
 
 ---
 
+## 5. Methodology audit — every bullet on slides 8–11
+
+Sections 1–4 came from diffing the *claims*. This is the line-by-line pass over
+the **methodology** slides, because a bullet on slide 9 or 10 is something an
+examiner will read as delivered.
+
+Fourteen bullets. Nine are met, three are deviations already recorded as D1–D4,
+and **three are named methodology components that do not exist**. Those three
+are new to this document and are the subject of M1–M3 below.
+
+### Slide 8 — Aim and objectives
+
+| | Status |
+|---|---|
+| (a) Universal Schema for visual layout + infrastructure state | ✅ `schema.json`; scope of "universal" now stated in `README.md` |
+| (b) Multi-Agent Orchestrator for reasoning and conflict detection | ✅ G6 closed — `conflict.py`, `intent.py` |
+| (c) Real-Time Visual Canvas with event-driven state mapping | ✅ no polling anywhere; user action → request, SSE during the turn. Single-session only (C7) |
+| (d) Validation Loop triggering AI intervention on human design errors | ✅ G5 closed — a hand edit validates in ~110 ms |
+
+### Slide 9 — Orchestration & logic
+
+| Bullet | Status |
+|---|---|
+| LangGraph Orchestration | ⚠️ **D1** — deterministic controller instead. Stronger; recorded |
+| Visual-Spatial Architect: "nesting, **proximity**" | ⚠️ **M1** — nesting implemented and registry-gated; **proximity is `status: "not_implemented"` in the schema and appears in no code** |
+| Visual Policy Critic: OPA + ghosting for "security**/cost**" fixes | ⚠️ **M2** — OPA and ghosting work; the cost half produces nothing |
+| Constrained Synthesizer: grammar-constrained decoding | ⚠️ **D2** — deterministic compiler instead. Stronger; recorded |
+| Memory Curator: Verified Visual Motifs | ⚠️ **M3** — interface only; `retrieve()` returns nothing on every turn |
+| Safety Governance: Agentic Breakpoints | ✅ ordinary control flow, not future work |
+
+### Slide 10 — Semantic interface & sync
+
+| Bullet | Status |
+|---|---|
+| Semantic Canvas — nodes carry cloud metadata | ✅ |
+| MCP Bridge streaming "Real-Time Deltas" | ⚠️ **D3** — request/response + SSE for the trace. The one deviation that is a shortfall, not an upgrade |
+| Spatial Mapping: node ID ↔ Terraform address | ✅ `adapters.py`, both directions |
+| HITL UI: red-glow conflict overlays | ✅ |
+| System Evaluation vs MACOG, vs text-based workflows | ❌ **A3** not started; the two named metrics need **A4**, which needs **A1** |
+
+### Slide 11 — Expected outcomes
+
+| | Status |
+|---|---|
+| Multi-Modal Agentic Workflows | ✅ |
+| Synchronized Co-Design Environment | ✅ |
+| **Zero-Drift Architecture** | ⚠️ overstated. Drift is desired-vs-last-compiled, not desired-vs-live (C4), because nothing here runs `apply` (C3, deliberate). State the weaker form |
+| Visual Conflict Resolution | ✅ |
+| "validated model for high-fidelity human-agent collaboration" | ❌ "validated" needs **A4** |
+
+---
+
+### M1 — Proximity semantics
+
+**Promised:** slide 9 — "Maps spatial metadata (**nesting, proximity**) from the
+UI to a Universal Infrastructure Schema."
+
+**Reality:** nesting is fully implemented and registry-gated, so it can never
+invent a relationship Terraform cannot express. Proximity is specified in
+`schema.json` — `signal: view.position`, `effect: suggestion_only`,
+`binding: false` — and carries `"status": "not_implemented"`. `grep -rn
+proximity` over all three repos returns nothing outside the schema.
+
+**Why it is small.** The schema already decided the hard question: proximity is
+*non-binding*. Distance must never create, remove or modify infrastructure,
+because two nodes may sit together for reasons the layout engine chose. So
+closing M1 cannot affect correctness and cannot break the benchmark — it is a
+reporting path, not a compilation path.
+
+**How to close (≈0.5 d).** Cluster nodes by canvas distance, pass the clusters
+to the Architect as context alongside the retrieved motifs, and let any
+resulting edit go through the ordinary breakpoint/approval flow. Then flip
+`status` to `implemented` in the schema. Deliverable: a suggestion the human
+accepts or rejects, never a silent edit.
+
+**Or close it honestly instead.** Reclassify as scope: "proximity was specified
+and deliberately left non-binding; implementing the suggestion channel is
+future work." That costs a sentence. Either is defensible — what is not
+defensible is a methodology bullet with nothing behind it and no explanation.
+
+### M2 — The cost half of the Visual Policy Critic
+
+**Promised:** slide 9 — ghosting "on the canvas for suggested **security/cost**
+fixes."
+
+**Reality:** security works end to end — OPA evaluates five Rego policies, and
+a violated rule that names its own fix is ghosted over the node as a
+before → after diff. `validators/cost.py` is a 53-line documented stub, so
+`cost` reports `skipped` on every turn and the cost half of that sentence
+produces nothing.
+
+**The useful finding:** the ghosting path is generic. It renders any
+counterexample carrying a `patch`, and does not care which validator produced
+it. The cost half is absent **only because cost emits no counterexamples** —
+not because the canvas cannot show them. Closing M2 is the price book and
+nothing else.
+
+**How to close (≈1–1.5 d).** `price_book.json` keyed
+`{terraform_type: {region: {sku: usd_per_month}}}`, stamped with the catalogue
+date so a run is reproducible; walk `compiled["plan"]["resources"]`; emit a
+`cost_violation` per over-budget node. The harder half is already done — since
+W2 the plan carries every SKU as the provider resolves it (`instance_class`,
+`allocated_storage`, `billing_mode`), so the book can be keyed on values that
+actually exist rather than on what the graph happens to spell.
+
+**Recommendation: do not build this.** `cost.py`'s own docstring makes the
+better argument — a cost figure nobody can trace is exactly the kind of
+evidence a proof-carrying bundle exists to exclude, and a hand-made price book
+for 11 resource types is not a research result. Reclassify: the interface is
+settled, the plan-grounded inputs exist, the catalogue is out of scope. Say so
+on the slide's terms.
+
+### M3 — Memory Curator
+
+**Promised:** slide 9 — "Maintains a library of Verified Visual Motifs to
+prevent 'State Drift' and facilitate rapid co-design."
+
+**Reality:** `agents/curator.py` is 59 lines of interface. It is wired into the
+controller — `retrieve()` is called before the Architect plans, `store()` after
+a successful turn — so every turn runs the `- Memory Curator` ablation without
+saying so.
+
+**Why this one is different from M2.** The curator's own docstring argues it
+matters *more* here than in MACOG: MACOG's motifs are typed code fragments,
+but here a verified motif is **a subgraph plus its layout**, so reusing one
+restores the arrangement the human recognises rather than just the resources.
+That is a distinctive claim of this research, and it currently has nothing
+behind it. MACOG's ablation for this component is its mildest
+(74.02 → 72.17), which is why it was deferred — but MACOG's version is the
+weaker one.
+
+**How to close (≈1 d).** `shape_key()` canonicalising (sorted resource kinds,
+edge multiset) so "VPC + 2 subnets + ALB" retrieves regardless of naming;
+`store()` writing {subgraph, HCL digest, evidence bundle, view positions} on a
+turn that ends `done` with every validator passing; `retrieve()` injecting
+matches as typed fragments, never raw HCL; persisted alongside projects.
+
+**Recommendation: build this one.** It is the cheapest of the three, it is the
+only one whose absence undercuts a claim that is *distinctive to this
+research*, and it converts an unstated ablation into a real table row.
+
+---
+
+### Triage
+
+| | Effort | Verdict |
+|---|---|---|
+| **M3** Memory Curator | 1 d | **Build.** Distinctive visual-motif claim currently empty |
+| **M1** Proximity | 0.5 d | **Build** — it is half a day and completes a named objective — or reclassify in one sentence |
+| **M2** Cost | 1.5 d | **Reclassify.** An untraceable price book is worse than an honest absence |
+| **Zero-Drift wording** | — | State the weaker form: desired-vs-last-compiled |
+
+None of these outranks **A3** or **A1**. M1–M3 make the methodology chapter
+defensible; A3 and A4 decide whether there is a result to defend. Do them in
+that order.
+
+---
+
 ## Implementation plan
 
 Ordered by dependency, not by size. Effort is working days for one person.
@@ -262,6 +420,17 @@ most likely to ask.
 | 2.1 | **A3 — text-only baseline CLI.** Same agents, same validators, no canvas. | 1 d | A comparative number exists. Unblocks every "compared to text-based workflows" sentence. |
 | 2.2 | **Azure spike.** 3–5 registry types; compile; fix whichever of the four leaks fire. | 1 d | Either "a provider is pure registry data" or "it costs N lines in 4 files" — both reportable. |
 | 2.3 | **C1 coverage.** Import three public Terraform repos; report `unmapped` as a percentage. | 0.5 d | The largest limitation becomes a quantified boundary. |
+
+### Phase 2b — the three absent methodology components (≈1.5 d, see §5)
+
+Named on slide 9, so an examiner reads them as delivered. Lower priority than
+2.1–2.3, higher than Phase 3.
+
+| # | Task | Effort | Done when |
+|---|---|---|---|
+| 2.4 | **M3 — Memory Curator.** `shape_key`, `store`, `retrieve`. | 1 d | A repeated shape is seeded, and `- Memory Curator` becomes a real ablation row rather than every run's silent default. |
+| 2.5 | **M1 — proximity.** Cluster by distance, report to the Architect as context, flip `status` in the schema. | 0.5 d | A proximity suggestion reaches the human through the normal approval flow. Non-binding, so the benchmark cannot move. |
+| 2.6 | **M2 — cost.** Reclassify rather than build; one paragraph. | 0.25 d | The slide's cost clause has a stated reason, not a silence. |
 
 ### Phase 3 — evidence hygiene (≈2 days, any time before writing up)
 
